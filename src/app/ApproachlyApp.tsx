@@ -361,10 +361,25 @@ const eyebrow = (color: string): CSSProperties => ({
 type Screen =
   "landing" | "home" | "hype" | "log" | "reward" | "you" | "quiz" | "ranks";
 type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => void;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
+// Onboarding step order — the single source of truth for the quiz sequence.
+// Render blocks and helpers key off STEP.<name>, so reordering or inserting a
+// step is an edit to this array, not a hand-renumber of a dozen `quizStep === N`
+// checks scattered through the render.
+const STEP_ORDER = [
+  "reframe", // "swiping is hiding" reframe + chart
+  "scenario", // what usually happens when you see someone (freq)
+  "anxiety", // baseline anxiety slider
+  "motivation", // why you're here (multi-select)
+  "barrier", // what's really stopping you
+  "reassure", // you're not alone interstitial
+  "goal", // weekly goal
+  "respect", // the pledge interstitial
+  "building", // loading beat → auto-advances to plan
+  "plan", // plan reveal → quizFinish
+] as const;
+const STEP = Object.fromEntries(
+  STEP_ORDER.map((k, i) => [k, i]),
+) as Record<(typeof STEP_ORDER)[number], number>;
 
 const AnxRow = ({
   value,
@@ -477,19 +492,6 @@ export default function ApproachlyApp({
   const removeSubMut = useMutation(api.push.removeSubscription);
   const [pushBusy, setPushBusy] = useState(false);
   const [goalEditing, setGoalEditing] = useState(false);
-  const [installEvent, setInstallEvent] =
-    useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS] = useState(() =>
-    typeof navigator !== "undefined"
-      ? /iphone|ipad|ipod/i.test(navigator.userAgent)
-      : false,
-  );
-  const [isStandalone] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia?.("(display-mode: standalone)").matches ||
-        (navigator as Navigator & { standalone?: boolean }).standalone === true
-      : false,
-  );
   const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const onboarded = !!me?.onboarded;
   const booting = !isLoaded || (isSignedIn && me === undefined);
@@ -511,6 +513,21 @@ export default function ApproachlyApp({
   if (!booting && !booted) {
     setBooted(true);
     setScreen(onboarded ? "home" : "landing");
+  }
+
+  // Signed out (sign-out button or expired session) while on an authed screen →
+  // return to the landing front door. Without this the last screen lingers with
+  // empty data ("Day zero") until a manual refresh. The quiz + signup flow (a
+  // legitimately signed-out user on "quiz"/"landing", or mid-signup with a
+  // pendingPlan) is excluded.
+  if (
+    isLoaded &&
+    !isSignedIn &&
+    !pendingPlan &&
+    screen !== "landing" &&
+    screen !== "quiz"
+  ) {
+    setScreen("landing");
   }
 
   // Returning user signs in mid-quiz → jump home (unless intentionally replaying onboarding).
@@ -577,20 +594,6 @@ export default function ApproachlyApp({
     [],
   );
 
-  // PWA install: capture the deferred prompt (Chrome/Android/desktop) + detect platform.
-  useEffect(() => {
-    const onBIP = (e: Event) => {
-      e.preventDefault();
-      setInstallEvent(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", onBIP);
-    const onInstalled = () => setInstallEvent(null);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBIP);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
 
   const haptic = (ms = 12) => {
     try {
@@ -761,15 +764,16 @@ export default function ApproachlyApp({
   const quizNext = () => {
     const step = quizStep + 1;
     // Per-step funnel analytics: reveals exactly which onboarding step bleeds.
-    trackCustom("OnboardingStep", { step });
+    trackCustom("OnboardingStep", { step, name: STEP_ORDER[step] });
     setQuizStep(step);
-    if (step === 8)
+    // The "building" beat auto-advances to the plan reveal.
+    if (step === STEP.building)
       setTimeout(
         () =>
           setQuizStep((s) => {
-            if (s !== 8) return s;
-            trackCustom("OnboardingStep", { step: 9 });
-            return 9;
+            if (s !== STEP.building) return s;
+            trackCustom("OnboardingStep", { step: STEP.plan, name: "plan" });
+            return STEP.plan;
           }),
         1900,
       );
@@ -802,24 +806,6 @@ export default function ApproachlyApp({
     }
   };
 
-  // PWA install (onboarding "Add to Home Screen")
-  const handleInstall = async () => {
-    if (installEvent) {
-      try {
-        installEvent.prompt();
-        await installEvent.userChoice;
-      } catch {
-        /* ignore */
-      }
-      setInstallEvent(null);
-      quizFinish();
-    } else if (isIOS && !isStandalone) {
-      // iOS has no programmatic install — guide, and let them tap "Enter Couragely" after.
-      showToast("Tap the Share icon in Safari, then 'Add to Home Screen'.");
-    } else {
-      quizFinish();
-    }
-  };
 
   // weekly reminder push
   const pushOn = !!pushStatus?.subscribed;
@@ -949,8 +935,8 @@ export default function ApproachlyApp({
   });
   // top-down climb: Legend at the summit, Rookie at the base
   const journeyClimb = [...journeyRanks].reverse();
-  const quizPct = Math.round((quizStep / 10) * 100);
-  const quizShowChrome = quizStep >= 1 && quizStep <= 7;
+  const quizPct = Math.round((quizStep / (STEP_ORDER.length - 1)) * 100);
+  const quizShowChrome = quizStep >= STEP.scenario && quizStep <= STEP.respect;
   let goalVals = [2, 3, 5, 7];
   if (quiz.freq === "never" || quiz.freq === "rarely") goalVals = [2, 3, 4];
   else if (quiz.freq === "sometimes") goalVals = [3, 4, 5];
@@ -2998,7 +2984,7 @@ export default function ApproachlyApp({
               </div>
             )}
             <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-              {quizStep === 0 && (
+              {quizStep === STEP.reframe && (
                 <>
                   <div
                     style={{
@@ -3126,7 +3112,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 1 && (
+              {quizStep === STEP.scenario && (
                 <>
                   <div
                     style={{
@@ -3197,7 +3183,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 2 && (
+              {quizStep === STEP.anxiety && (
                 <>
                   <div
                     style={{
@@ -3272,7 +3258,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 3 && (
+              {quizStep === STEP.motivation && (
                 <>
                   <div
                     style={{
@@ -3357,7 +3343,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 4 && (
+              {quizStep === STEP.barrier && (
                 <>
                   <div
                     style={{
@@ -3433,7 +3419,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 5 && (
+              {quizStep === STEP.reassure && (
                 <>
                   <div
                     style={{
@@ -3493,7 +3479,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 6 && (
+              {quizStep === STEP.goal && (
                 <>
                   <div
                     style={{
@@ -3577,7 +3563,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 7 && (
+              {quizStep === STEP.respect && (
                 <>
                   <div
                     style={{
@@ -3644,7 +3630,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 8 && (
+              {quizStep === STEP.building && (
                 <div
                   style={{
                     flex: 1,
@@ -3682,7 +3668,7 @@ export default function ApproachlyApp({
                 </div>
               )}
 
-              {quizStep === 9 && (
+              {quizStep === STEP.plan && (
                 <>
                   <div style={{ animation: "aFadeUp .5s both" }}>
                     <div
@@ -3868,81 +3854,6 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 10 && (
-                <>
-                  <div
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "center",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div style={{ fontSize: 40, marginBottom: 18 }}>📲</div>
-                    <div
-                      style={{
-                        fontFamily: DISPLAY,
-                        fontSize: 28,
-                        color: "var(--bone)",
-                        textTransform: "uppercase",
-                        lineHeight: 1.02,
-                        marginBottom: 14,
-                      }}
-                    >
-                      Make it stick
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 14.5,
-                        color: "var(--ash)",
-                        lineHeight: 1.55,
-                        maxWidth: 320,
-                        margin: "0 auto 24px",
-                      }}
-                    >
-                      Add Couragely to your home screen so the weekly nudge can
-                      reach you. You can switch reminders on anytime from your
-                      profile.
-                    </div>
-                    {!isStandalone && (
-                      <button
-                        onClick={handleInstall}
-                        style={{
-                          width: "100%",
-                          border: "none",
-                          borderRadius: 14,
-                          padding: 16,
-                          background: "var(--bone)",
-                          color: "var(--ink)",
-                          fontWeight: 700,
-                          fontSize: 15,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Add to Home Screen
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    onClick={quizFinish}
-                    style={{
-                      width: "100%",
-                      border: "none",
-                      borderRadius: 18,
-                      padding: 18,
-                      background: GO_GRAD,
-                      color: "#07130C",
-                      fontFamily: DISPLAY,
-                      fontSize: 20,
-                      textTransform: "uppercase",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Enter Couragely
-                  </button>
-                </>
-              )}
             </div>
           </div>
         )}
