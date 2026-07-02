@@ -51,6 +51,12 @@ export const logRep = mutation({
     const modeTier = Math.min(Math.max(repsToday, 1), 7); // client maps tier → name/color/blurb
     const xp = xpForRep(args.anxietyBefore);
 
+    // Milestone signals for the reward banner (client builds the copy).
+    const prevPeak = user.peakModeN ?? 0;
+    const peakModeN = Math.max(prevPeak, modeTier);
+    const isNewPeak = modeTier > prevPeak && modeTier >= 2;
+    const newTotal = user.totalApproaches + 1;
+
     const prev = levelFromXp(user.totalXp);
     const totalXp = user.totalXp + xp;
     const info = levelFromXp(totalXp);
@@ -84,9 +90,10 @@ export const logRep = mutation({
     await ctx.db.patch(user._id, {
       totalXp,
       level: info.level,
-      totalApproaches: user.totalApproaches + 1,
+      totalApproaches: newTotal,
       greatSets: user.greatSets + (args.vibe === "GREAT_SET" ? 1 : 0),
       gotNumbers: user.gotNumbers + (args.gotNumber ? 1 : 0),
+      peakModeN,
       repsToday,
       currentDayKey: dayKey,
       repsThisWeek,
@@ -111,6 +118,8 @@ export const logRep = mutation({
       rankUp,
       newRank: info.rank,
       streak: streakWeeks,
+      isNewPeak,
+      newTotal,
     };
   },
 });

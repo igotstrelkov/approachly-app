@@ -39,6 +39,16 @@ function toRoman(n: number): string {
 const rankForLevel = (L: number) =>
   L >= PRESTIGE_START ? `Legend ${toRoman(Math.floor((L - PRESTIGE_START) / PRESTIGE_BAND) + 1)}`
   : L >= 15 ? "Ironclad" : L >= 10 ? "Fearless" : L >= 5 ? "Bold" : "Rookie";
+// Base (undecorated) rank — used to match the 5-rung ladder's "current" state.
+const baseRankForLevel = (L: number) =>
+  L >= 20 ? "Legend" : L >= 15 ? "Ironclad" : L >= 10 ? "Fearless" : L >= 5 ? "Bold" : "Rookie";
+const RANK_LADDER = [
+  { name: "Rookie", lvl: 1, short: "RK" },
+  { name: "Bold", lvl: 5, short: "BD" },
+  { name: "Fearless", lvl: 10, short: "FR" },
+  { name: "Ironclad", lvl: 15, short: "IC" },
+  { name: "Legend", lvl: 20, short: "LG" },
+] as const;
 
 type Mode = { n: number; name: string; emoji: string; color: string; blurb: string };
 const MODES: Mode[] = [
@@ -114,12 +124,35 @@ function makeConfetti(accent: string, enabled: boolean): Confetto[] {
 const iconBtn: CSSProperties = { width: 38, height: 38, borderRadius: 11, border: "1px solid var(--slate)", background: "var(--charcoal)", color: "var(--ash)", fontSize: 18, cursor: "pointer" };
 const eyebrow = (color: string): CSSProperties => ({ fontFamily: MONO, fontSize: 11, letterSpacing: 2.4, color, textTransform: "uppercase" });
 
-type Screen = "home" | "hype" | "log" | "reward" | "you" | "quiz";
+type Screen = "home" | "hype" | "log" | "reward" | "you" | "quiz" | "ranks" | "modes";
 type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
 type BeforeInstallPromptEvent = Event & {
   prompt: () => void;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
+
+const ProgTabs = ({ active, onNav }: { active: "ranks" | "modes"; onNav: (s: Screen) => void }) => (
+  <div style={{ display: "flex", gap: 6, background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 12, padding: 4, marginBottom: 24 }}>
+    {([["ranks", "Ranks"], ["modes", "Daily modes"]] as const).map(([k, label]) => (
+      <button key={k} onClick={() => onNav(k)} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", cursor: "pointer", background: active === k ? "var(--slate)" : "transparent", color: active === k ? "var(--bone)" : "var(--ash)", fontWeight: 700, fontSize: 13.5 }}>{label}</button>
+    ))}
+  </div>
+);
+
+const AnxRow = ({ value, onPick }: { value: number; onPick: (n: number) => void }) => (
+  <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
+    {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+      const on = n === value;
+      return (
+        <button key={n} className="aq-cell" onClick={() => onPick(n)}
+          style={{ flex: 1, height: 46, border: "none", borderRadius: 10, cursor: "pointer", background: on ? "var(--bone)" : "var(--slate)", color: on ? "var(--ink)" : "var(--ash)", fontFamily: MONO, fontSize: 14, fontWeight: 700, transform: on ? "scale(1.08)" : "scale(1)", transition: "transform .13s cubic-bezier(.3,1.4,.5,1),background .13s ease" }}>
+          {n}
+        </button>
+      );
+    })}
+  </div>
+);
+
 
 export default function ApproachlyApp({
   startScreen = "Onboarding",
@@ -166,48 +199,57 @@ export default function ApproachlyApp({
   const [pushBusy, setPushBusy] = useState(false);
   const [goalEditing, setGoalEditing] = useState(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS] = useState(() =>
+    typeof navigator !== "undefined" ? /iphone|ipad|ipod/i.test(navigator.userAgent) : false
+  );
+  const [isStandalone] = useState(() =>
+    typeof window !== "undefined" ? (window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true) : false
+  );
   const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const onboarded = !!me?.onboarded;
   const booting = !isLoaded || (isSignedIn && me === undefined);
 
   type Plan = { weeklyGoal: number; baselineAnxiety: number; reason?: string; timezone: string; reminderHour: number };
-  const pendingRef = useRef<Plan | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
   const [replaying, setReplaying] = useState(false);
-  const bootedRef = useRef(false);
+  const [booted, setBooted] = useState(false);
 
   // Choose the entry screen once auth + profile resolve.
-  useEffect(() => {
-    if (booting || bootedRef.current) return;
-    bootedRef.current = true;
+  if (!booting && !booted) {
+    setBooted(true);
     setScreen(onboarded ? "home" : "quiz");
-  }, [booting, onboarded]);
+  }
 
   // Returning user signs in mid-quiz → jump home (unless intentionally replaying onboarding).
-  useEffect(() => {
-    if (!isSignedIn || booting || pendingRef.current || replaying) return;
-    if (onboarded) setScreen((s) => (s === "quiz" ? "home" : s));
-  }, [isSignedIn, booting, onboarded, replaying]);
+  if (
+    !booting &&
+    isSignedIn &&
+    !pendingPlan &&
+    !replaying &&
+    onboarded &&
+    screen === "quiz"
+  ) {
+    setScreen("home");
+  }
+
+  // After sign-up, check if returning user already onboarded mid-quiz.
+  if (isSignedIn && me && pendingPlan && me.onboarded) {
+    setPendingPlan(null);
+    setReplaying(false);
+    setQuizStep(0);
+    setScreen("home");
+  }
 
   // After sign-up, persist the quiz the user already completed.
   useEffect(() => {
-    if (!isSignedIn || me === undefined || !pendingRef.current) return;
-    if (me?.onboarded) {
-      // Signed into an existing account after re-walking the quiz — keep their
-      // data and drop them on Home instead of re-onboarding.
-      pendingRef.current = null;
-      setReplaying(false);
-      setQuizStep(0);
-      setScreen("home");
-      return;
-    }
-    const plan = pendingRef.current;
-    pendingRef.current = null;
+    if (!isSignedIn || me === undefined || !pendingPlan) return;
+    if (me?.onboarded) return;
+    const plan = pendingPlan;
+    Promise.resolve().then(() => setPendingPlan(null));
     completeOnboardingMut(plan)
       .then(() => { setReplaying(false); setQuizStep(0); setScreen("home"); })
       .catch(() => {});
-  }, [isSignedIn, me, completeOnboardingMut]);
+  }, [isSignedIn, me, pendingPlan, completeOnboardingMut]);
 
   // Derive the mock-shaped `user` + `trend` from the dashboard so the screens below stay unchanged.
   const user = {
@@ -237,11 +279,6 @@ export default function ApproachlyApp({
   useEffect(() => {
     const onBIP = (e: Event) => { e.preventDefault(); setInstallEvent(e as BeforeInstallPromptEvent); };
     window.addEventListener("beforeinstallprompt", onBIP);
-    const nav = navigator as Navigator & { standalone?: boolean };
-    const standalone =
-      window.matchMedia?.("(display-mode: standalone)").matches || nav.standalone === true;
-    setIsStandalone(!!standalone);
-    setIsIOS(/iphone|ipad|ipod/i.test(navigator.userAgent));
     const onInstalled = () => setInstallEvent(null);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
@@ -276,8 +313,8 @@ export default function ApproachlyApp({
   const startLog = () => { setDraft({ vibe: null, anxiety: 5, note: "" }); nav("log"); };
   const setAnx = (v: number) => { haptic(); setDraft((d) => ({ ...d, anxiety: v })); };
 
-  function buildReward(approachId: Id<"approaches">, xp: number, mode: Mode, repsToday: number, streak: number, leveledUp: boolean, newLevel: number, rankUp: boolean, newRank: string) {
-    return { approachId, xp, mode, repsToday, streak, leveledUp, newLevel, rankUp, newRank, eyebrow: repsToday === 1 ? "You broke the ice today" : "Rep " + repsToday + " today", confetti: makeConfetti(mode.color, confetti) };
+  function buildReward(approachId: Id<"approaches">, xp: number, mode: Mode, repsToday: number, streak: number, leveledUp: boolean, newLevel: number, rankUp: boolean, newRank: string, milestone: { label: string; color: string } | null) {
+    return { approachId, xp, mode, repsToday, streak, leveledUp, newLevel, rankUp, newRank, milestone, eyebrow: repsToday === 1 ? "You broke the ice today" : "Rep " + repsToday + " today", confetti: makeConfetti(mode.color, confetti) };
   }
 
   const animateReward = (xp: number, total: number) => {
@@ -309,7 +346,13 @@ export default function ApproachlyApp({
     }
     const mode = MODES[res.modeTier - 1];
     const newTotal = prevTotal + 1;
-    setReward(buildReward(res.approachId, res.xpAwarded, mode, res.countToday, res.streak, res.leveledUp, res.level, res.rankUp, res.newRank));
+    const countMs = [10, 25, 50, 100, 250, 500];
+    const milestone = res.isNewPeak
+      ? { label: `New peak · ${mode.emoji} ${mode.name}`, color: mode.color }
+      : countMs.includes(res.newTotal)
+        ? { label: `${res.newTotal} approaches banked`, color: "#FFB23E" }
+        : null;
+    setReward(buildReward(res.approachId, res.xpAwarded, mode, res.countToday, res.streak, res.leveledUp, res.level, res.rankUp, res.newRank, milestone));
     setDisplayXp(0); setDisplayReps(newTotal - 1); setNumberSaved(false);
     setScreen("reward"); window.scrollTo(0, 0);
     animateReward(res.xpAwarded, newTotal);
@@ -338,7 +381,7 @@ export default function ApproachlyApp({
         .catch(() => showToast("Something went wrong — try again."));
     } else {
       // Invested user finishes the quiz, then signs up; the effect above persists it.
-      pendingRef.current = plan;
+      setPendingPlan(plan);
       openSignUp();
     }
   };
@@ -406,6 +449,34 @@ export default function ApproachlyApp({
   const baselineAnx = trend.length ? Number(trend[0]).toFixed(1) : "—";
   const hasRepsToday = user.repsToday >= 1;
   const todayMode = modeFor(Math.max(1, user.repsToday));
+
+  // ---- Progression (Ranks + Daily Modes) ----
+  const journeyRanks = RANK_LADDER.map((r) => {
+    const reached = level >= r.lvl;
+    const current = baseRankForLevel(level) === r.name;
+    return {
+      ...r, reached, current,
+      bg: current ? "rgba(255,178,62,.12)" : "var(--charcoal)",
+      border: current ? "var(--ember)" : "var(--slate)",
+      nameColor: reached ? "var(--bone)" : "var(--ashDim)",
+      badgeBg: current ? "rgba(255,178,62,.2)" : reached ? "var(--slate)" : "var(--charcoal)",
+      badgeColor: current ? "var(--ember)" : reached ? "var(--bone)" : "var(--ashDim)",
+      mark: current ? "● CURRENT" : reached ? "✓" : "LOCKED",
+      markColor: current ? "var(--ember)" : reached ? "var(--go)" : "var(--ashDim)",
+    };
+  });
+  const journeyModes = [1, 2, 3, 4, 5, 6, 7].map((n) => {
+    const m = MODES[n - 1];
+    const reached = user.repsToday >= n;
+    return {
+      ...m, reached,
+      bg: reached ? hexA(m.color, 0.1) : "var(--charcoal)",
+      border: reached ? m.color : "var(--slate)",
+      nameColor: reached ? m.color : "var(--ashDim)",
+      iconFilter: reached ? "none" : "grayscale(1) opacity(.55)",
+    };
+  });
+  const journeyReachedToday = user.repsToday >= 1;
   const quizPct = Math.round((quizStep / 9) * 100);
   const quizShowChrome = quizStep >= 1 && quizStep <= 6;
   let goalVals = [2, 3, 5, 7];
@@ -416,20 +487,7 @@ export default function ApproachlyApp({
 
   const optStyle = (sel: boolean): CSSProperties => ({ background: sel ? "rgba(52,209,126,.1)" : "var(--charcoal)", border: `1.5px solid ${sel ? "var(--go)" : "var(--slate)"}` });
 
-  // anxiety tap row
-  const AnxRow = ({ value, onPick }: { value: number; onPick: (n: number) => void }) => (
-    <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
-        const on = n === value;
-        return (
-          <button key={n} className="aq-cell" onClick={() => onPick(n)}
-            style={{ flex: 1, height: 46, border: "none", borderRadius: 10, cursor: "pointer", background: on ? "var(--bone)" : "var(--slate)", color: on ? "var(--ink)" : "var(--ash)", fontFamily: MONO, fontSize: 14, fontWeight: 700, transform: on ? "scale(1.08)" : "scale(1)", transition: "transform .13s cubic-bezier(.3,1.4,.5,1),background .13s ease" }}>
-            {n}
-          </button>
-        );
-      })}
-    </div>
-  );
+
   const anxScale = (
     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 10.5, color: "var(--ashDim)" }}>
       <span>1 · calm</span><span>10 · terrified</span>
@@ -452,7 +510,7 @@ export default function ApproachlyApp({
         {screen === "home" && (
           <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 44px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 34 }}>
-              <div style={{ ...eyebrow("var(--ember)"), letterSpacing: 2 }}>Lvl {level} · {rank}</div>
+              <button onClick={() => nav("ranks")} style={{ ...eyebrow("var(--ember)"), letterSpacing: 2, background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>Lvl {level} · {rank}<span style={{ color: "var(--ash)", fontSize: 14 }}>›</span></button>
               <button onClick={() => nav("you")} style={{ ...iconBtn, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 20 c0-4 4-6 8-6 s8 2 8 6" /></svg>
               </button>
@@ -508,14 +566,15 @@ export default function ApproachlyApp({
                 <div style={{ fontSize: 12, color: "var(--ash)", fontStyle: "italic" }}>{chart.chartSubcaption}</div>
 
                 {hasRepsToday && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 24, background: hexA(todayMode.color, 0.12), border: `1px solid ${todayMode.color}`, borderRadius: 14, padding: "11px 14px" }}>
+                  <button onClick={() => nav("modes")} style={{ width: "100%", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 11, marginTop: 24, background: hexA(todayMode.color, 0.12), border: `1px solid ${todayMode.color}`, borderRadius: 14, padding: "11px 14px" }}>
                     <span style={{ fontSize: 20, lineHeight: 1 }}>{todayMode.emoji}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 1.5, color: "var(--ash)", textTransform: "uppercase" }}>Today</div>
                       <div style={{ fontWeight: 700, fontSize: 14.5, color: todayMode.color }}>{todayMode.name}</div>
                     </div>
                     <span style={{ fontFamily: MONO, fontSize: 12.5, color: "var(--ash)" }}>{user.repsToday === 1 ? "1 rep" : `${user.repsToday} reps`}</span>
-                  </div>
+                    <span style={{ color: "var(--ash)", fontSize: 18, marginLeft: 2 }}>›</span>
+                  </button>
                 )}
               </>
             )}
@@ -697,6 +756,11 @@ export default function ApproachlyApp({
               {reward.rankUp && (
                 <div style={{ marginTop: 10, textAlign: "center", animation: "aPop .5s .4s both" }}><div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 2, color: "var(--ash)", textTransform: "uppercase" }}>New rank</div><div style={{ fontFamily: DISPLAY, fontSize: 24, color: "var(--ember)", textTransform: "uppercase" }}>{reward.newRank}</div></div>
               )}
+              {reward.milestone && (
+                <div style={{ marginTop: 16, padding: "10px 20px", borderRadius: 999, background: hexA(reward.milestone.color, 0.12), border: `1px solid ${hexA(reward.milestone.color, 0.5)}`, animation: "aPop .5s .45s both" }}>
+                  <span style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 1.5, color: reward.milestone.color, textTransform: "uppercase" }}>⭐ {reward.milestone.label}</span>
+                </div>
+              )}
 
               <div style={{ marginTop: 26, textAlign: "center", maxWidth: 300, animation: "aFadeUp .5s .28s both" }}>
                 <div style={{ fontWeight: 700, fontSize: 18, color: "var(--bone)", lineHeight: 1.3 }}>Rep logged. Showing up is the whole win.</div>
@@ -782,7 +846,7 @@ export default function ApproachlyApp({
               </div>
             </div>
 
-            <button onClick={async () => { bootedRef.current = false; setQuizStep(0); setScreen("quiz"); await signOut(); }} style={{ width: "100%", marginTop: 30, background: "none", border: "1px solid var(--slate)", borderRadius: 14, padding: 15, color: "var(--ash)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
+            <button onClick={async () => { setBooted(false); setQuizStep(0); setScreen("quiz"); await signOut(); }} style={{ width: "100%", marginTop: 30, background: "none", border: "1px solid var(--slate)", borderRadius: 14, padding: 15, color: "var(--ash)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
             <div style={{ textAlign: "center", fontSize: 11, color: "var(--ashDim)", marginTop: 18 }}>Approachly · adults approaching adults · 18+</div>
           </div>
         )}
@@ -923,6 +987,72 @@ export default function ApproachlyApp({
                   <button onClick={quizFinish} style={{ width: "100%", border: "none", borderRadius: 18, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 20, textTransform: "uppercase", cursor: "pointer" }}>Enter Approachly</button>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ============ RANKS (permanent) ============ */}
+        {screen === "ranks" && (
+          <div style={{ minHeight: "100vh", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 40px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 22 }}>
+              <button onClick={() => nav("home")} style={{ ...iconBtn }}>‹</button>
+            </div>
+            <ProgTabs active="ranks" onNav={nav} />
+            <div style={{ ...eyebrow("var(--ember)"), letterSpacing: 2.4, marginBottom: 12 }}>Your journey</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
+              <div style={{ width: 66, height: 66, borderRadius: 20, background: "linear-gradient(135deg,var(--ember),var(--flare))", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DISPLAY, fontSize: 30, color: "#1a0f08" }}>{level}</div>
+              <div>
+                <div style={{ fontFamily: DISPLAY, fontSize: 26, textTransform: "uppercase", color: "var(--bone)", lineHeight: 1 }}>{rank}</div>
+                <div style={{ fontFamily: MONO, fontSize: 12, color: "var(--ash)", marginTop: 3 }}>Level {level} · {into}/{need} XP</div>
+              </div>
+            </div>
+            <div style={{ height: 9, borderRadius: 999, background: "var(--slate)", overflow: "hidden", marginBottom: 8 }}>
+              <div style={{ height: "100%", width: `${levelPct}%`, background: "linear-gradient(90deg,var(--ember),#FFCF7A)", borderRadius: 999 }} />
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--ash)", marginBottom: 34 }}>{xpToNext} XP to Level {level + 1}</div>
+
+            <div style={{ ...eyebrow("var(--ash)"), letterSpacing: 2, marginBottom: 14 }}>Ranks · permanent climb</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              {journeyRanks.map((r) => (
+                <div key={r.name} style={{ display: "flex", alignItems: "center", gap: 13, padding: "14px 15px", borderRadius: 14, background: r.bg, border: `1px solid ${r.border}` }}>
+                  <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: r.badgeBg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 12, fontWeight: 700, color: r.badgeColor }}>{r.short}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: r.nameColor }}>{r.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--ash)" }}>Level {r.lvl}+</div>
+                  </div>
+                  <span style={{ fontFamily: MONO, fontSize: 11, color: r.markColor }}>{r.mark}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ============ DAILY MODES ============ */}
+        {screen === "modes" && (
+          <div style={{ minHeight: "100vh", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 40px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 22 }}>
+              <button onClick={() => nav("home")} style={{ ...iconBtn }}>‹</button>
+            </div>
+            <ProgTabs active="modes" onNav={nav} />
+            <div style={{ ...eyebrow("var(--ash)"), letterSpacing: 2, marginBottom: 6 }}>Daily modes · reset every day</div>
+            <div style={{ fontSize: 12.5, color: "var(--ash)", marginBottom: 16 }}>
+              {journeyReachedToday ? (
+                <>Every rep in a day escalates your mode. Today you reached <span style={{ color: todayMode.color, fontWeight: 700 }}>{todayMode.name}</span>.</>
+              ) : (
+                "Log a rep to start today's climb."
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              {journeyModes.map((m) => (
+                <div key={m.n} style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 15px", borderRadius: 14, background: m.bg, border: `1px solid ${m.border}` }}>
+                  <span style={{ fontSize: 22, lineHeight: 1, filter: m.iconFilter }}>{m.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: m.nameColor }}>{m.name} <span style={{ fontFamily: MONO, fontSize: 11, color: "var(--ashDim)" }}>· rep {m.n}</span></div>
+                    <div style={{ fontSize: 12, color: "var(--ash)", lineHeight: 1.35 }}>{m.blurb}</div>
+                  </div>
+                  {m.reached && <span style={{ fontSize: 13, color: "var(--go)" }}>✓</span>}
+                </div>
+              ))}
             </div>
           </div>
         )}
