@@ -1,0 +1,805 @@
+"use client";
+
+/*
+ * Approachly — full app, ported 1:1 from the Claude Design bundle.
+ * PHASE 1: faithful, self-contained port with in-memory mock state (no backend),
+ * so the UX matches the design exactly. PHASE 2 swaps this local state for Convex
+ * queries/mutations + Clerk auth (see convex/ + SETUP.md).
+ */
+
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { useAuth, useClerk } from "@clerk/nextjs";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+
+const DISPLAY = "var(--font-display), Anton, sans-serif";
+const MONO = "var(--font-space-mono), 'Space Mono', monospace";
+const GO_GRAD = "linear-gradient(180deg,#3BE389,var(--go))";
+
+// ---------- pure logic (mirrors the design) ----------
+const levelForXp = (xp: number) => {
+  let L = 1;
+  while (75 * (L + 1) * L <= xp) L++;
+  return L;
+};
+const xpForLevel = (L: number) => 75 * L * (L - 1);
+const rankForLevel = (L: number) =>
+  L >= 20 ? "Legend" : L >= 15 ? "Ironclad" : L >= 10 ? "Fearless" : L >= 5 ? "Bold" : "Rookie";
+
+type Mode = { n: number; name: string; emoji: string; color: string; blurb: string };
+const MODES: Mode[] = [
+  { n: 1, name: "Warm-up", emoji: "🔥", color: "#34D17E", blurb: "The first one's the hardest — and you just beat the freeze." },
+  { n: 2, name: "Locked In", emoji: "💪", color: "#FFB23E", blurb: "Two down. You're locked in now — nerves don't stand a chance." },
+  { n: 3, name: "Dialed", emoji: "⚡", color: "#FF9A2E", blurb: "Three in a day. Fully dialed — you're on another level." },
+  { n: 4, name: "Beast Mode", emoji: "🦍", color: "#FF5A36", blurb: "Four. Beast mode: fear isn't driving anymore — you are." },
+  { n: 5, name: "Cracked", emoji: "🚀", color: "#FF3D6E", blurb: "Five. Absolutely cracked. No wall left to hit today." },
+  { n: 6, name: "Him", emoji: "👑", color: "#C15CFF", blurb: "Six. Yeah — you're Him. A different person than day one." },
+  { n: 7, name: "Final Boss", emoji: "🌌", color: "#8B7BFF", blurb: "Seven and climbing. Final boss energy. Untouchable." },
+];
+const modeFor = (n: number) => MODES[Math.min(Math.max(n, 1), 7) - 1];
+
+const hexA = (hex: string, a: number) => {
+  const h = hex.replace("#", "");
+  return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
+};
+
+function buildChart(trend: number[], W: number, H: number) {
+  const pad = 8, padB = 8;
+  const max = Math.max(...trend), min = Math.min(...trend), range = Math.max(1, max - min);
+  const pts = trend.map((v, i) => [
+    pad + (trend.length === 1 ? 0.5 : i / (trend.length - 1)) * (W - pad * 2),
+    pad + (1 - (v - min) / range) * (H - pad - padB),
+  ]);
+  let line: string;
+  if (pts.length < 3) {
+    line = "M" + pts.map((p) => p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" L");
+  } else {
+    line = "M" + pts[0][0].toFixed(1) + " " + pts[0][1].toFixed(1);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      line += " C" + c1x.toFixed(1) + " " + c1y.toFixed(1) + " " + c2x.toFixed(1) + " " + c2y.toFixed(1) + " " + p2[0].toFixed(1) + " " + p2[1].toFixed(1);
+    }
+  }
+  const area = line + " L" + pts[pts.length - 1][0].toFixed(1) + " " + H + " L" + pts[0][0].toFixed(1) + " " + H + " Z";
+  const last = pts[pts.length - 1], dropVal = trend[0] - trend[trend.length - 1], hasDelta = trend.length >= 2;
+  return {
+    chartLine: line, chartArea: area, chartW: W, chartH: H,
+    chartDotX: last[0].toFixed(1), chartDotY: last[1].toFixed(1),
+    chartCurrent: trend[trend.length - 1].toFixed(1),
+    chartArrow: hasDelta ? (dropVal >= 0 ? "▼" : "▲") : "○",
+    chartDelta: hasDelta ? Math.abs(dropVal).toFixed(1) : "Day zero",
+    chartTrendColor: hasDelta ? (dropVal >= 0 ? "var(--go)" : "var(--amber)") : "var(--ash)",
+    chartTrendTint: hasDelta ? (dropVal >= 0 ? "rgba(52,209,126,.12)" : "rgba(224,160,48,.12)") : "var(--slate)",
+    chartSubcaption: hasDelta ? "Down is the win. Your real line — not a promise." : "Baseline set. Log a rep to start drawing your line.",
+  };
+}
+
+type Confetto = { id: number; style: CSSProperties };
+function makeConfetti(accent: string, enabled: boolean): Confetto[] {
+  if (!enabled) return [];
+  const cols = [accent, "#F4F3F0", "#FFB23E", "#34D17E", "#FF5A36"];
+  const arr: Confetto[] = [];
+  for (let i = 0; i < 52; i++) {
+    const size = 6 + Math.random() * 8, round = Math.random() > 0.5;
+    arr.push({
+      id: i,
+      style: {
+        position: "absolute", top: -24, left: `${Math.random() * 100}%`,
+        width: size, height: round ? size : size * 0.45,
+        background: cols[i % cols.length], borderRadius: round ? "50%" : 2,
+        animation: `aConfetti ${(0.95 + Math.random() * 0.9).toFixed(2)}s ${(Math.random() * 0.3).toFixed(2)}s cubic-bezier(.2,.6,.35,1) forwards`,
+      },
+    });
+  }
+  return arr;
+}
+
+// shared small styles
+const iconBtn: CSSProperties = { width: 38, height: 38, borderRadius: 11, border: "1px solid var(--slate)", background: "var(--charcoal)", color: "var(--ash)", fontSize: 18, cursor: "pointer" };
+const eyebrow = (color: string): CSSProperties => ({ fontFamily: MONO, fontSize: 11, letterSpacing: 2.4, color, textTransform: "uppercase" });
+
+type Screen = "home" | "hype" | "log" | "reward" | "you" | "quiz";
+type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
+
+export default function ApproachlyApp({
+  startScreen = "Onboarding",
+  courageColor = "#34D17E",
+  confetti = true,
+}: {
+  startScreen?: "Home" | "Onboarding";
+  courageColor?: string;
+  confetti?: boolean;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [screen, setScreen] = useState<Screen>(startScreen === "Onboarding" ? "quiz" : "home");
+  const [draft, setDraft] = useState<{ vibe: Vibe; anxiety: number; note: string }>({ vibe: null, anxiety: 5, note: "" });
+  const [reward, setReward] = useState<ReturnType<typeof buildReward> | null>(null);
+  const [displayXp, setDisplayXp] = useState(0);
+  const [displayReps, setDisplayReps] = useState(0);
+  const [shared, setShared] = useState(false);
+  const [numberSaved, setNumberSaved] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [hypeStep, setHypeStep] = useState<"primer" | "countdown" | "go">("primer");
+  const [hypeCount, setHypeCount] = useState(3);
+  const [quizStep, setQuizStep] = useState(0);
+  const [quiz, setQuiz] = useState<{ freq: string | null; anxiety: number; motivation: string[]; goal: number | null; respect: boolean }>(
+    { freq: null, anxiety: 5, motivation: [], goal: null, respect: false }
+  );
+  // ---- Convex + Clerk wiring ----
+  const timezone = useMemo(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; }
+  }, []);
+  const { isLoaded, isSignedIn } = useAuth();
+  const { openSignIn, openSignUp, signOut } = useClerk();
+  const me = useQuery(api.users.getMe, isSignedIn ? {} : "skip");
+  const dash = useQuery(api.approaches.dashboard, isSignedIn ? { timezone } : "skip");
+  const logRepMut = useMutation(api.approaches.logRep);
+  const completeOnboardingMut = useMutation(api.users.completeOnboarding);
+  const markNumberMut = useMutation(api.approaches.markNumber);
+  const onboarded = !!me?.onboarded;
+  const booting = !isLoaded || (isSignedIn && me === undefined);
+
+  type Plan = { weeklyGoal: number; baselineAnxiety: number; reason?: string; timezone: string; reminderHour: number };
+  const pendingRef = useRef<Plan | null>(null);
+  const [replaying, setReplaying] = useState(false);
+  const bootedRef = useRef(false);
+
+  // Choose the entry screen once auth + profile resolve.
+  useEffect(() => {
+    if (booting || bootedRef.current) return;
+    bootedRef.current = true;
+    setScreen(onboarded ? "home" : "quiz");
+  }, [booting, onboarded]);
+
+  // Returning user signs in mid-quiz → jump home (unless intentionally replaying onboarding).
+  useEffect(() => {
+    if (!isSignedIn || booting || pendingRef.current || replaying) return;
+    if (onboarded) setScreen((s) => (s === "quiz" ? "home" : s));
+  }, [isSignedIn, booting, onboarded, replaying]);
+
+  // After sign-up, persist the quiz the user already completed.
+  useEffect(() => {
+    if (!isSignedIn || me === undefined || !pendingRef.current) return;
+    if (me?.onboarded) { pendingRef.current = null; return; }
+    const plan = pendingRef.current;
+    pendingRef.current = null;
+    completeOnboardingMut(plan)
+      .then(() => { setReplaying(false); setQuizStep(0); setScreen("home"); })
+      .catch(() => {});
+  }, [isSignedIn, me, completeOnboardingMut]);
+
+  // Derive the mock-shaped `user` + `trend` from the dashboard so the screens below stay unchanged.
+  const user = {
+    totalXp: dash?.user.totalXp ?? 0,
+    weeklyGoal: dash?.week.goal ?? quiz.goal ?? 3,
+    repsThisWeek: dash?.week.count ?? 0,
+    repsToday: dash?.today.count ?? 0,
+    streakWeeks: dash?.streak.current ?? 0,
+    streakLongest: dash?.streak.longest ?? 0,
+    totalApproaches: dash?.totals.approaches ?? 0,
+    greatSets: dash?.totals.greatSets ?? 0,
+    mostInDay: 0,
+  };
+  const trend: number[] = dash?.trend?.length
+    ? dash.trend.map((p) => p.a)
+    : [dash?.user.baselineAnxiety ?? quiz.anxiety ?? 5];
+
+  useEffect(() => {
+    if (rootRef.current) rootRef.current.style.setProperty("--go", courageColor);
+  });
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  }, []);
+
+  const haptic = (ms = 12) => { try { navigator.vibrate?.(ms); } catch {} };
+  const nav = (s: Screen) => { setScreen(s); window.scrollTo(0, 0); };
+  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(null), 3200); };
+
+  // hype
+  const startHype = () => { setHypeStep("primer"); setHypeCount(3); nav("hype"); };
+  const hypeGo = () => {
+    setHypeStep("countdown"); setHypeCount(3);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setHypeCount((c) => {
+        if (c - 1 <= 0) { if (intervalRef.current) clearInterval(intervalRef.current); setHypeStep("go"); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+  const hypeWhy = () => {
+    const map: Record<string, string> = { dates: "more dates", relationship: "a real relationship", confidence: "confidence everywhere", chances: "to stop missing chances", prove: "to prove something to yourself" };
+    const key = me?.reason || quiz.motivation[0];
+    return key ? map[key] || "the life you want" : "the life you want";
+  };
+
+  // log
+  const startLog = () => { setDraft({ vibe: null, anxiety: 5, note: "" }); nav("log"); };
+  const setAnx = (v: number) => { haptic(); setDraft((d) => ({ ...d, anxiety: v })); };
+
+  function buildReward(approachId: Id<"approaches">, xp: number, mode: Mode, repsToday: number, streak: number, leveledUp: boolean, newLevel: number, rankUp: boolean, newRank: string) {
+    return { approachId, xp, mode, repsToday, streak, leveledUp, newLevel, rankUp, newRank, eyebrow: repsToday === 1 ? "You broke the ice today" : "Rep " + repsToday + " today", confetti: makeConfetti(mode.color, confetti) };
+  }
+
+  const animateReward = (xp: number, total: number) => {
+    const start = performance.now(), dur = 950, from = total - 1;
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / dur, 1), e = 1 - Math.pow(1 - t, 3);
+      setDisplayXp(Math.round(xp * e));
+      setDisplayReps(Math.round(from + (total - from) * e));
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const logIt = async () => {
+    if (!draft.vibe) return;
+    const prevTotal = user.totalApproaches;
+    let res: Awaited<ReturnType<typeof logRepMut>>;
+    try {
+      res = await logRepMut({
+        vibe: draft.vibe,
+        anxietyBefore: draft.anxiety,
+        gotNumber: false,
+        note: draft.note.trim() || undefined,
+        timezone,
+      });
+    } catch {
+      showToast("Couldn't log that rep — try again.");
+      return;
+    }
+    const mode = MODES[res.modeTier - 1];
+    const newTotal = prevTotal + 1;
+    setReward(buildReward(res.approachId, res.xpAwarded, mode, res.countToday, res.streak, res.leveledUp, res.level, res.rankUp, res.newRank));
+    setDisplayXp(0); setDisplayReps(newTotal - 1); setShared(false); setNumberSaved(false);
+    setScreen("reward"); window.scrollTo(0, 0);
+    animateReward(res.xpAwarded, newTotal);
+  };
+
+  // quiz
+  const quizSet = (f: string, v: unknown) => setQuiz((q) => ({ ...q, [f]: v }));
+  const quizToggle = (f: "motivation", v: string) => setQuiz((q) => { const a = q[f] || []; return { ...q, [f]: a.includes(v) ? a.filter((x) => x !== v) : [...a, v] }; });
+  const quizNext = () => {
+    const step = quizStep + 1; setQuizStep(step);
+    if (step === 7) setTimeout(() => setQuizStep((s) => (s === 7 ? 8 : s)), 1900);
+    window.scrollTo(0, 0);
+  };
+  const quizBack = () => setQuizStep((s) => Math.max(0, s - 1));
+  const quizFinish = () => {
+    const plan: Plan = {
+      weeklyGoal: quiz.goal || 3,
+      baselineAnxiety: quiz.anxiety,
+      reason: quiz.motivation[0] || undefined,
+      timezone,
+      reminderHour: 10,
+    };
+    if (isSignedIn) {
+      completeOnboardingMut(plan)
+        .then(() => { setReplaying(false); setQuizStep(0); nav("home"); })
+        .catch(() => showToast("Something went wrong — try again."));
+    } else {
+      // Invested user finishes the quiz, then signs up; the effect above persists it.
+      pendingRef.current = plan;
+      openSignUp();
+    }
+  };
+
+  // ---------- derived ----------
+  const level = levelForXp(user.totalXp);
+  const base = xpForLevel(level), next = xpForLevel(level + 1), into = user.totalXp - base, need = next - base;
+  const xpToNext = need - into, levelPct = Math.round((into / need) * 100), rank = rankForLevel(level);
+  const chart = buildChart(trend, 360, 190);
+  const isFresh = user.totalApproaches === 0;
+  const baselineAnx = trend.length ? Number(trend[0]).toFixed(1) : "—";
+  const hasRepsToday = user.repsToday >= 1;
+  const todayMode = modeFor(Math.max(1, user.repsToday));
+  const quizPct = Math.round((quizStep / 9) * 100);
+  const quizShowChrome = quizStep >= 1 && quizStep <= 6;
+  let goalVals = [2, 3, 5, 7];
+  if (quiz.freq === "never" || quiz.freq === "rarely") goalVals = [2, 3, 4];
+  else if (quiz.freq === "sometimes") goalVals = [3, 4, 5];
+  else if (quiz.freq === "often") goalVals = [4, 5, 7];
+  const quizGoal = quiz.goal || goalVals[1];
+
+  const optStyle = (sel: boolean): CSSProperties => ({ background: sel ? "rgba(52,209,126,.1)" : "var(--charcoal)", border: `1.5px solid ${sel ? "var(--go)" : "var(--slate)"}` });
+
+  // anxiety tap row
+  const AnxRow = ({ value, onPick }: { value: number; onPick: (n: number) => void }) => (
+    <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+        const on = n === value;
+        return (
+          <button key={n} className="aq-cell" onClick={() => onPick(n)}
+            style={{ flex: 1, height: 46, border: "none", borderRadius: 10, cursor: "pointer", background: on ? "var(--bone)" : "var(--slate)", color: on ? "var(--ink)" : "var(--ash)", fontFamily: MONO, fontSize: 14, fontWeight: 700, transform: on ? "scale(1.08)" : "scale(1)", transition: "transform .13s cubic-bezier(.3,1.4,.5,1),background .13s ease" }}>
+            {n}
+          </button>
+        );
+      })}
+    </div>
+  );
+  const anxScale = (
+    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 10.5, color: "var(--ashDim)" }}>
+      <span>1 · calm</span><span>10 · terrified</span>
+    </div>
+  );
+
+  if (booting || (isSignedIn && onboarded && dash === undefined)) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: 40, color: "var(--go)", textTransform: "uppercase", animation: "aPulse 1.4s ease-in-out infinite" }}>Approachly</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--ink)", display: "flex", justifyContent: "center" }}>
+      <div ref={rootRef} style={{ width: "100%", maxWidth: 440, minHeight: "100vh", background: "var(--ink)", position: "relative", overflow: "hidden" }}>
+
+        {/* ============ HOME ============ */}
+        {screen === "home" && (
+          <div style={{ padding: "54px 22px 44px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 34 }}>
+              <div style={{ ...eyebrow("var(--ember)"), letterSpacing: 2 }}>Lvl {level} · {rank}</div>
+              <button onClick={() => nav("you")} style={{ ...iconBtn, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 20 c0-4 4-6 8-6 s8 2 8 6" /></svg>
+              </button>
+            </div>
+
+            {isFresh ? (
+              <>
+                <div style={{ ...eyebrow("var(--go)"), marginBottom: 10 }}>Day zero</div>
+                <div style={{ fontFamily: DISPLAY, fontSize: 42, lineHeight: 0.96, textTransform: "uppercase", color: "var(--bone)", marginBottom: 18 }}>Your line<br />starts here.</div>
+                <div style={{ background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 20, padding: 20 }}>
+                  <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "var(--ash)", marginBottom: 3 }}>Where your fear is today</div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><span style={{ fontFamily: DISPLAY, fontSize: 58, lineHeight: 0.85, color: "var(--bone)" }}>{baselineAnx}</span><span style={{ fontFamily: MONO, fontSize: 13, color: "var(--ash)" }}>/10</span></div>
+                    </div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(52,209,126,.12)", borderRadius: 999, padding: "7px 12px" }}><span style={{ fontFamily: MONO, fontSize: 12, color: "var(--go)", fontWeight: 700 }}>Baseline</span></div>
+                  </div>
+                  <svg viewBox="0 0 360 84" width="100%" style={{ display: "block" }}>
+                    <path d="M12 20 C110 26, 240 58, 348 72" fill="none" stroke="var(--go)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="3 7" opacity="0.55" />
+                    <circle cx="12" cy="20" r="6" fill="var(--go)" />
+                    <circle cx="348" cy="72" r="4" fill="none" stroke="var(--ash)" strokeWidth="2" opacity="0.5" />
+                  </svg>
+                  <div style={{ fontSize: 12.5, color: "var(--ash)", fontStyle: "italic", marginTop: 8 }}>Log your first rep to draw the first real point. From here, the only way is down.</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ ...eyebrow("var(--ash)"), marginBottom: 10 }}>Your fear, falling</div>
+                <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+                    <span style={{ fontFamily: DISPLAY, fontSize: 76, lineHeight: 0.82, color: "var(--bone)" }}>{chart.chartCurrent}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, color: "var(--ash)" }}>/10<br />right now</span>
+                  </div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: chart.chartTrendTint, borderRadius: 999, padding: "7px 12px", marginBottom: 6 }}>
+                    <span style={{ color: chart.chartTrendColor, fontSize: 13 }}>{chart.chartArrow}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, color: chart.chartTrendColor, fontWeight: 700 }}>{chart.chartDelta}</span>
+                  </div>
+                </div>
+                <svg viewBox={`0 0 ${chart.chartW} ${chart.chartH}`} width="100%" style={{ display: "block", overflow: "visible", marginBottom: 6 }}>
+                  <defs>
+                    <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--go)" stopOpacity="0.22" />
+                      <stop offset="100%" stopColor="var(--go)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={chart.chartArea} fill="url(#heroFill)" style={{ animation: "aFadeIn 1s ease .3s both" }} />
+                  <path d={chart.chartLine} fill="none" stroke="var(--go)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ strokeDasharray: 600, strokeDashoffset: 0, animation: "aDraw 1.6s cubic-bezier(.45,0,.2,1) both" }} />
+                  <g style={{ animation: "aFadeIn .5s ease 1.2s both" }}>
+                    <circle cx={chart.chartDotX} cy={chart.chartDotY} r="6" fill="var(--go)" />
+                    <circle cx={chart.chartDotX} cy={chart.chartDotY} r="6" fill="none" stroke="var(--go)" strokeWidth="2" opacity="0.5" style={{ transformOrigin: `${chart.chartDotX}px ${chart.chartDotY}px`, animation: "aRing 2.2s ease-out infinite" }} />
+                  </g>
+                </svg>
+                <div style={{ fontSize: 12, color: "var(--ash)", fontStyle: "italic" }}>{chart.chartSubcaption}</div>
+
+                {hasRepsToday && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 24, background: hexA(todayMode.color, 0.12), border: `1px solid ${todayMode.color}`, borderRadius: 14, padding: "11px 14px" }}>
+                    <span style={{ fontSize: 20, lineHeight: 1 }}>{todayMode.emoji}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: 1.5, color: "var(--ash)", textTransform: "uppercase" }}>Today</div>
+                      <div style={{ fontWeight: 700, fontSize: 14.5, color: todayMode.color }}>{todayMode.name}</div>
+                    </div>
+                    <span style={{ fontFamily: MONO, fontSize: 12.5, color: "var(--ash)" }}>{user.repsToday === 1 ? "1 rep" : `${user.repsToday} reps`}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ACTIONS */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 32 }}>
+              <button onClick={startHype} style={{ width: "100%", cursor: "pointer", background: "var(--charcoal)", border: "1.5px solid var(--ember)", borderRadius: 20, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
+                <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(255,178,62,.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 L4 14 H12 L11 22 L20 10 H12 Z" /></svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "var(--bone)" }}>I&apos;m out — hype me</div>
+                  <div style={{ fontSize: 12.5, color: "var(--ash)", marginTop: 1 }}>Before you walk over. 30 seconds.</div>
+                </div>
+                <span style={{ color: "var(--ember)", fontSize: 22 }}>›</span>
+              </button>
+
+              <button onClick={startLog} style={{ width: "100%", cursor: "pointer", border: "none", background: GO_GRAD, color: "#07130C", borderRadius: 22, padding: "24px 20px", boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)" }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 32, textTransform: "uppercase", lineHeight: 1 }}>{isFresh ? "Log your first rep" : "Log a rep"}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, opacity: 0.72, marginTop: 6 }}>{isFresh ? "You walked over. This is the one." : "You walked over. Bank it."}</div>
+              </button>
+            </div>
+
+            {isFresh && (
+              <div style={{ marginTop: 42 }}>
+                <div style={{ ...eyebrow("var(--ash)"), letterSpacing: 2, marginBottom: 14 }}>The loop</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {[
+                    { n: 1, c: "var(--ember)", bg: "rgba(255,178,62,.14)", h: "Get hyped, before", p: "A 30-second primer to beat the freeze." },
+                    { n: 2, c: "var(--go)", bg: "rgba(52,209,126,.14)", h: "Log the rep", p: "Two taps. Great set or flop — both count." },
+                    { n: 3, c: "var(--go)", bg: "rgba(52,209,126,.14)", h: "Watch your fear fall", p: "Every rep draws your line further down." },
+                  ].map((s) => (
+                    <div key={s.n} style={{ display: "flex", gap: 13, alignItems: "center" }}>
+                      <div style={{ width: 34, height: 34, flexShrink: 0, borderRadius: 10, background: s.bg, border: `1px solid ${s.c}`, color: s.c, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 14, fontWeight: 700 }}>{s.n}</div>
+                      <div><div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--bone)" }}>{s.h}</div><div style={{ fontSize: 12.5, color: "var(--ash)" }}>{s.p}</div></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!isFresh && (
+              <div style={{ marginTop: 46 }}>
+                <div style={{ ...eyebrow("var(--ash)"), letterSpacing: 2, marginBottom: 6 }}>Your progress</div>
+                <div>
+                  {[
+                    { l: <span style={{ fontSize: 14.5, color: "var(--bone)" }}>This week</span>, r: <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--bone)" }}><span style={{ color: "var(--go)" }}>{user.repsThisWeek}</span> / {user.weeklyGoal} · goal</span> },
+                    { l: <span style={{ fontSize: 14.5, color: "var(--bone)" }}>Weekly streak</span>, r: <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--bone)" }}><span style={{ color: "var(--ember)" }}>{user.streakWeeks}</span> now · {user.streakLongest} best</span> },
+                    { l: <span style={{ fontSize: 14.5, color: "var(--bone)" }}>Total approaches</span>, r: <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--bone)" }}>{user.totalApproaches}</span> },
+                    { l: <span style={{ fontSize: 14.5, color: "var(--bone)" }}>Great sets <span style={{ color: "var(--go)" }}>▲</span></span>, r: <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--go)" }}>{user.greatSets} &amp; climbing</span> },
+                    { l: <span style={{ fontSize: 14.5, color: "var(--bone)" }}>Level {level} · {rank}</span>, r: <span style={{ fontFamily: MONO, fontSize: 13, color: "var(--ash)" }}>{xpToNext} XP to {level + 1}</span> },
+                  ].map((row, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "17px 0", borderBottom: "1px solid var(--slate)" }}>{row.l}{row.r}</div>
+                  ))}
+                  <div style={{ height: 8, borderRadius: 999, background: "var(--slate)", overflow: "hidden", marginTop: 16 }}>
+                    <div style={{ height: "100%", width: `${levelPct}%`, background: "linear-gradient(90deg,var(--ember),#FFCF7A)", borderRadius: 999 }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============ HYPE ============ */}
+        {screen === "hype" && (
+          <div style={{ minHeight: "100vh", background: "radial-gradient(120% 70% at 50% 0%, #241a10 0%, var(--ink) 55%)", display: "flex", flexDirection: "column", padding: "52px 24px 34px" }}>
+            {hypeStep === "primer" && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+                  <button onClick={() => nav("home")} style={{ ...iconBtn }}>✕</button>
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <div style={{ ...eyebrow("var(--ember)"), marginBottom: 12 }}>Before you walk over</div>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 34, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1, marginBottom: 26 }}>The freeze is<br />the only enemy.</div>
+                  <div style={{ display: "flex", gap: 13, alignItems: "center", background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 16, padding: 16, marginBottom: 12 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,178,62,.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "var(--ember)", fontSize: 18 }}>✦</div>
+                    <div><div style={{ fontSize: 12, color: "var(--ash)", marginBottom: 2 }}>You&apos;re doing this for</div><div style={{ fontSize: 15, color: "var(--bone)", fontWeight: 600 }}>{hypeWhy()}</div></div>
+                  </div>
+                  <div style={{ display: "flex", gap: 13, alignItems: "center", background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 16, padding: 16, marginBottom: 12 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(90,155,230,.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "var(--cool)", fontSize: 18 }}>“</div>
+                    <div><div style={{ fontSize: 12, color: "var(--ash)", marginBottom: 2 }}>An easy opener</div><div style={{ fontSize: 15, color: "var(--bone)", fontWeight: 600 }}>&quot;Hey — this is random, but I saw you and had to say hi.&quot;</div></div>
+                  </div>
+                  <div style={{ textAlign: "center", marginTop: 22 }}>
+                    <div style={{ width: 96, height: 96, borderRadius: "50%", margin: "0 auto 12px", border: "1.5px solid var(--ember)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,178,62,.18)", animation: "aBreath 4s ease-in-out infinite" }} />
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "var(--ash)" }}>One slow breath in… and out.</div>
+                  </div>
+                </div>
+                <button onClick={hypeGo} style={{ width: "100%", border: "none", borderRadius: 20, padding: 19, cursor: "pointer", background: "linear-gradient(180deg,#FFC65E,var(--ember))", color: "#2a1a05", fontFamily: DISPLAY, fontSize: 22, textTransform: "uppercase", boxShadow: "0 14px 40px -10px rgba(255,178,62,.5)" }}>I&apos;m ready — count me down</button>
+              </>
+            )}
+
+            {hypeStep === "countdown" && (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ position: "relative", width: 200, height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid var(--ember)", opacity: 0.5, animation: "aRing 1s ease-out infinite" }} />
+                  <span style={{ fontFamily: DISPLAY, fontSize: 130, color: "var(--ember)", lineHeight: 1, animation: "aCount 1s ease-out" }} key={hypeCount}>{hypeCount}</span>
+                </div>
+                <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 2, color: "var(--ash)", textTransform: "uppercase", marginTop: 20 }}>Lock eyes. Smile. Move your feet.</div>
+              </div>
+            )}
+
+            {hypeStep === "go" && (
+              <>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 96, color: "var(--go)", textTransform: "uppercase", lineHeight: 1, animation: "aPop .4s cubic-bezier(.2,.8,.3,1.2) both" }}>Go.</div>
+                  <div style={{ fontSize: 17, color: "var(--bone)", fontWeight: 700, marginTop: 8 }}>Walk over. Right now.</div>
+                  <div style={{ fontSize: 13, color: "var(--ash)", marginTop: 8, maxWidth: 280, lineHeight: 1.5 }}>Whatever happens next, you already won the second you moved.</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                  <button onClick={startLog} style={{ width: "100%", border: "none", borderRadius: 20, padding: 18, cursor: "pointer", background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 20, textTransform: "uppercase" }}>I took the shot — log it</button>
+                  <button onClick={() => nav("home")} style={{ width: "100%", border: "1px solid var(--slateHi)", borderRadius: 16, padding: 15, background: "none", color: "var(--ash)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Not yet — back</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ============ LOG ============ */}
+        {screen === "log" && (
+          <div style={{ minHeight: "100vh", padding: "52px 22px 34px", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
+              <button onClick={() => nav("home")} style={{ ...iconBtn }}>✕</button>
+            </div>
+            <div style={{ fontFamily: DISPLAY, fontSize: 32, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1, marginBottom: 6 }}>You did it.<br />How&apos;d it go?</div>
+            <div style={{ fontSize: 13.5, color: "var(--ash)", marginBottom: 24 }}>Both count exactly the same.</div>
+
+            <div style={{ display: "flex", gap: 11, marginBottom: 30 }}>
+              <button onClick={() => setDraft((d) => ({ ...d, vibe: "GREAT_SET" }))} style={{ flex: 1, textAlign: "left", cursor: "pointer", borderRadius: 18, padding: "18px 16px", ...optStyle(draft.vibe === "GREAT_SET") }}>
+                <div style={{ fontSize: 22, marginBottom: 8 }}>✦</div>
+                <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--bone)" }}>Great set</div>
+                <div style={{ fontSize: 12, color: "var(--ash)", marginTop: 2 }}>Flowed, connected.</div>
+              </button>
+              <button onClick={() => setDraft((d) => ({ ...d, vibe: "STILL_A_REP" }))} style={{ flex: 1, textAlign: "left", cursor: "pointer", borderRadius: 18, padding: "18px 16px", background: draft.vibe === "STILL_A_REP" ? "rgba(224,160,48,.1)" : "var(--charcoal)", border: `1.5px solid ${draft.vibe === "STILL_A_REP" ? "var(--amber)" : "var(--slate)"}` }}>
+                <div style={{ fontSize: 22, marginBottom: 8 }}>◆</div>
+                <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--bone)" }}>Still a rep</div>
+                <div style={{ fontSize: 12, color: "var(--ash)", marginTop: 2 }}>Flat or awkward — carried it anyway.</div>
+              </button>
+            </div>
+
+            <div style={{ fontWeight: 600, fontSize: 15, color: "var(--bone)", marginBottom: 3 }}>How anxious were you, right before?</div>
+            <div style={{ fontSize: 12.5, color: "var(--ash)", marginBottom: 16 }}>Tap one. Just for you — it&apos;s how we track your fear falling.</div>
+            <AnxRow value={draft.anxiety} onPick={setAnx} />
+            <div style={{ marginBottom: 26 }}>{anxScale}</div>
+
+            <input value={draft.note} onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))} placeholder="One line for yourself (optional)" style={{ width: "100%", background: "var(--slate)", border: "1px solid var(--slateHi)", borderRadius: 14, padding: "15px 16px", color: "var(--bone)", fontSize: 14, marginBottom: 24 }} />
+
+            <div style={{ flex: 1 }} />
+            <button onClick={logIt} disabled={!draft.vibe} style={{ width: "100%", border: "none", borderRadius: 20, padding: 19, cursor: draft.vibe ? "pointer" : "not-allowed", background: draft.vibe ? GO_GRAD : "var(--slate)", color: draft.vibe ? "#07130C" : "var(--ashDim)", fontFamily: DISPLAY, fontSize: 22, textTransform: "uppercase" }}>Log it</button>
+          </div>
+        )}
+
+        {/* ============ REWARD ============ */}
+        {screen === "reward" && reward && (
+          <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", padding: "52px 24px 32px" }}>
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+              {reward.confetti.map((c) => <div key={c.id} style={c.style} />)}
+            </div>
+            <div style={{ position: "relative", zIndex: 2, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+              <div style={{ position: "relative", marginTop: 10, marginBottom: 6, animation: "aPop .5s cubic-bezier(.2,.8,.3,1.2) both" }}>
+                <div style={{ position: "absolute", inset: -24, borderRadius: "50%", background: `radial-gradient(circle,${hexA(reward.mode.color, 0.5)} 0%,transparent 70%)`, animation: "aGlow 2.4s ease-in-out infinite" }} />
+                <div style={{ position: "relative", width: 100, height: 100, borderRadius: 30, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 50, background: "var(--charcoal)", border: `1.5px solid ${reward.mode.color}` }}>{reward.mode.emoji}</div>
+              </div>
+              <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 2.5, textTransform: "uppercase", color: "var(--ash)", marginBottom: 2 }}>{reward.eyebrow}</div>
+              <div style={{ fontFamily: DISPLAY, fontSize: 28, textTransform: "uppercase", color: reward.mode.color, animation: "aFadeUp .5s .1s both" }}>{reward.mode.name}</div>
+              <div style={{ fontSize: 13.5, color: "var(--bone)", maxWidth: 290, textAlign: "center", lineHeight: 1.4, marginTop: 8, animation: "aFadeUp .5s .16s both" }}>{reward.mode.blurb}</div>
+
+              <div style={{ marginTop: 24, textAlign: "center", animation: "aFadeUp .5s .18s both" }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 74, lineHeight: 0.9, color: "var(--go)" }}>+{displayXp}</div>
+                <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 2, color: "var(--ash)", textTransform: "uppercase" }}>XP · Courage banked</div>
+              </div>
+
+              {reward.leveledUp && (
+                <div style={{ marginTop: 18, padding: "10px 20px", borderRadius: 999, background: "rgba(255,178,62,.12)", border: "1px solid rgba(255,178,62,.5)", animation: "aPop .5s .3s both" }}>
+                  <span style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 1.5, color: "var(--ember)", textTransform: "uppercase" }}>⬆ Level up · Level {reward.newLevel}</span>
+                </div>
+              )}
+              {reward.rankUp && (
+                <div style={{ marginTop: 10, textAlign: "center", animation: "aPop .5s .4s both" }}><div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 2, color: "var(--ash)", textTransform: "uppercase" }}>New rank</div><div style={{ fontFamily: DISPLAY, fontSize: 24, color: "var(--ember)", textTransform: "uppercase" }}>{reward.newRank}</div></div>
+              )}
+
+              <div style={{ marginTop: 26, textAlign: "center", maxWidth: 300, animation: "aFadeUp .5s .28s both" }}>
+                <div style={{ fontWeight: 700, fontSize: 18, color: "var(--bone)", lineHeight: 1.3 }}>Rep logged. Showing up is the whole win.</div>
+                <div style={{ marginTop: 10, fontSize: 13, color: "var(--ash)" }}>Approach <span style={{ fontFamily: MONO, color: "var(--bone)" }}>#{displayReps}</span> · <span style={{ fontFamily: MONO, color: "var(--bone)" }}>{reward.streak}</span>-week streak</div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  const next = !numberSaved;
+                  setNumberSaved(next);
+                  try { await markNumberMut({ approachId: reward.approachId, gotNumber: next }); }
+                  catch { setNumberSaved(!next); showToast("Couldn't save that."); }
+                }}
+                style={{ marginTop: 18, background: numberSaved ? "rgba(52,209,126,.12)" : "var(--charcoal)", border: `1px solid ${numberSaved ? "var(--go)" : "var(--slateHi)"}`, borderRadius: 999, padding: "9px 16px", color: numberSaved ? "var(--go)" : "var(--ash)", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, animation: "aFadeUp .5s .34s both" }}
+              >
+                <span>📱</span>{numberSaved ? "Number saved ✓" : "Got their number?"}
+              </button>
+
+              <div style={{ flex: 1 }} />
+
+              <div style={{ width: "100%", animation: "aFadeUp .5s .5s both" }}>
+                <div style={{ display: "flex", gap: 11 }}>
+                  <button onClick={() => setShared(true)} style={{ flexShrink: 0, border: "1px solid var(--slateHi)", borderRadius: 18, padding: "0 20px", background: "var(--charcoal)", color: "var(--bone)", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12 v7 a1 1 0 0 0 1 1 h14 a1 1 0 0 0 1 -1 v-7" /><path d="M12 15 V3" /><path d="M8 7 l4 -4 l4 4" /></svg>
+                    {shared ? "Shared ✓" : "Share"}
+                  </button>
+                  <button onClick={() => nav("home")} style={{ flex: 1, border: "none", borderRadius: 18, padding: 16, cursor: "pointer", background: GO_GRAD, color: "#07130C", fontWeight: 700, fontSize: 16 }}>Continue</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============ YOU ============ */}
+        {screen === "you" && (
+          <div style={{ minHeight: "100vh", padding: "52px 22px 40px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
+              <button onClick={() => nav("home")} style={{ ...iconBtn }}>‹</button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 15, marginBottom: 30 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 19, background: "linear-gradient(135deg,var(--ember),var(--flare))", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DISPLAY, fontSize: 26, color: "#1a0f08" }}>{level}</div>
+              <div><div style={{ fontWeight: 700, fontSize: 19, color: "var(--bone)" }}>{rank}</div><div style={{ fontFamily: MONO, fontSize: 12, color: "var(--ash)" }}>Level {level} · {user.totalApproaches} approaches</div></div>
+            </div>
+
+            <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: 1.5, color: "var(--ash)", textTransform: "uppercase", marginBottom: 8 }}>Your plan</div>
+            <div>
+              {[
+                { l: "Weekly goal", r: <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--go)", fontWeight: 700 }}>{user.weeklyGoal} / week</span> },
+                { l: "Weekly reminder", r: <span style={{ fontSize: 13, color: "var(--ash)" }}>Sun · 10:00 AM</span> },
+                { l: "Week rolls over", r: <span style={{ fontSize: 13, color: "var(--ash)" }}>4:00 AM local</span> },
+              ].map((row, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--slate)" }}><span style={{ fontSize: 14.5, color: "var(--bone)" }}>{row.l}</span>{row.r}</div>
+              ))}
+            </div>
+
+            <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: 1.5, color: "var(--ash)", textTransform: "uppercase", margin: "26px 0 8px" }}>Privacy</div>
+            <div><div style={{ padding: "16px 0", fontSize: 14.5, color: "var(--bone)", borderBottom: "1px solid var(--slate)", cursor: "pointer" }}>Export my data</div></div>
+
+            <button onClick={() => { setReplaying(true); setQuizStep(0); nav("quiz"); }} style={{ width: "100%", marginTop: 26, background: "var(--charcoal)", border: "1px solid var(--slateHi)", borderRadius: 14, padding: 15, color: "var(--bone)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>▶ Replay onboarding</button>
+            <button onClick={async () => { bootedRef.current = false; setReplaying(false); setQuizStep(0); setScreen("quiz"); await signOut(); }} style={{ width: "100%", marginTop: 11, background: "none", border: "1px solid var(--slate)", borderRadius: 14, padding: 15, color: "var(--ash)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
+            <div style={{ textAlign: "center", fontSize: 11, color: "var(--ashDim)", marginTop: 18 }}>Approachly · adults approaching adults · 18+</div>
+          </div>
+        )}
+
+        {/* ============ ONBOARDING / QUIZ ============ */}
+        {screen === "quiz" && (
+          <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "52px 22px 32px" }}>
+            {quizShowChrome && (
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 30 }}>
+                <button onClick={quizBack} style={{ width: 34, height: 34, flexShrink: 0, borderRadius: 10, border: "1px solid var(--slate)", background: "var(--charcoal)", color: "var(--ash)", fontSize: 16, cursor: "pointer" }}>‹</button>
+                <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--slate)", overflow: "hidden" }}><div style={{ height: "100%", width: `${quizPct}%`, background: "var(--go)", borderRadius: 999, transition: "width .3s" }} /></div>
+              </div>
+            )}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+              {quizStep === 0 && (
+                <>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
+                    <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 1.5, color: "var(--go)", marginBottom: 20 }}>18+ · ADULTS APPROACHING ADULTS</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 40, color: "var(--bone)", textTransform: "uppercase", lineHeight: 0.98, marginBottom: 18 }}>Beat the freeze. One rep at a time.</div>
+                    <div style={{ fontSize: 15, color: "var(--ash)", lineHeight: 1.5, maxWidth: 320, margin: "0 auto" }}>A few quick questions and we&apos;ll build your starting point — then you&apos;ll log your first rep.</div>
+                  </div>
+                  <button onClick={quizNext} style={{ width: "100%", border: "none", borderRadius: 18, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 21, textTransform: "uppercase", cursor: "pointer" }}>I&apos;m 18+ · Start</button>
+                  <button onClick={() => openSignIn()} style={{ width: "100%", marginTop: 14, background: "none", border: "none", color: "var(--ash)", fontSize: 13.5, cursor: "pointer" }}>Already have an account? <span style={{ color: "var(--go)", fontWeight: 700 }}>Sign in</span></button>
+                </>
+              )}
+
+              {quizStep === 1 && (
+                <>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 26, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.04, marginBottom: 22 }}>Right now — how often do you actually walk over and say hi?</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                    {[{ v: "never", label: "Never" }, { v: "rarely", label: "Rarely — a few times a year" }, { v: "sometimes", label: "Sometimes — about monthly" }, { v: "often", label: "Often — weekly or more" }].map((o) => (
+                      <button key={o.v} onClick={() => quizSet("freq", o.v)} style={{ textAlign: "left", borderRadius: 15, padding: "17px 18px", ...optStyle(quiz.freq === o.v), color: "var(--bone)", fontSize: 15.5, fontWeight: 600, cursor: "pointer" }}>{o.label}</button>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={quizNext} disabled={!quiz.freq} style={{ width: "100%", border: "none", borderRadius: 16, padding: 17, background: quiz.freq ? "var(--go)" : "var(--slate)", color: quiz.freq ? "#07130C" : "var(--ashDim)", fontWeight: 700, fontSize: 16, cursor: quiz.freq ? "pointer" : "not-allowed", marginTop: 22 }}>Continue</button>
+                </>
+              )}
+
+              {quizStep === 2 && (
+                <>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 26, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.04, marginBottom: 8 }}>Picture walking up to someone you find attractive. How anxious?</div>
+                  <div style={{ fontSize: 13, color: "var(--ash)", marginBottom: 26 }}>This is your day-zero point — the line you&apos;re about to bring down.</div>
+                  <div style={{ textAlign: "center", marginBottom: 18 }}><span style={{ fontFamily: DISPLAY, fontSize: 66, color: "var(--bone)", lineHeight: 0.9 }}>{quiz.anxiety}</span><span style={{ fontFamily: MONO, fontSize: 16, color: "var(--ash)" }}>/10</span></div>
+                  <AnxRow value={quiz.anxiety} onPick={(n) => { haptic(); quizSet("anxiety", n); }} />
+                  {anxScale}
+                  <div style={{ flex: 1 }} />
+                  <button onClick={quizNext} style={{ width: "100%", border: "none", borderRadius: 16, padding: 17, background: "var(--go)", color: "#07130C", fontWeight: 700, fontSize: 16, cursor: "pointer", marginTop: 22 }}>Continue</button>
+                </>
+              )}
+
+              {quizStep === 3 && (
+                <>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 26, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.04, marginBottom: 6 }}>What would change if approaching didn&apos;t scare you?</div>
+                  <div style={{ fontSize: 13, color: "var(--ash)", marginBottom: 22 }}>Pick all that fit.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {[{ v: "dates", label: "More dates" }, { v: "relationship", label: "A real relationship" }, { v: "confidence", label: "Confidence everywhere" }, { v: "chances", label: "Stop missing chances" }, { v: "prove", label: "Prove something to myself" }].map((o) => {
+                      const sel = quiz.motivation.includes(o.v);
+                      return (
+                        <button key={o.v} onClick={() => quizToggle("motivation", o.v)} style={{ textAlign: "left", borderRadius: 14, padding: "15px 17px", ...optStyle(sel), color: "var(--bone)", fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>{o.label}<span style={{ color: "var(--go)", fontSize: 15 }}>{sel ? "✓" : ""}</span></button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={quizNext} style={{ width: "100%", border: "none", borderRadius: 16, padding: 17, background: "var(--go)", color: "#07130C", fontWeight: 700, fontSize: 16, cursor: "pointer", marginTop: 22 }}>Continue</button>
+                </>
+              )}
+
+              {quizStep === 4 && (
+                <>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
+                    <div style={{ fontSize: 40, marginBottom: 20 }}>🫂</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 28, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.02, marginBottom: 18 }}>You&apos;re not alone.</div>
+                    <div style={{ fontSize: 15.5, color: "var(--ash)", lineHeight: 1.55, maxWidth: 330, margin: "0 auto" }}>Approach anxiety is one of the most common social fears — and one of the most beatable. It responds to one thing: doing it, in small doses, on repeat. <span style={{ color: "var(--bone)" }}>That&apos;s the whole app.</span></div>
+                  </div>
+                  <button onClick={quizNext} style={{ width: "100%", border: "none", borderRadius: 16, padding: 17, background: "var(--go)", color: "#07130C", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>Makes sense</button>
+                </>
+              )}
+
+              {quizStep === 5 && (
+                <>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 26, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.04, marginBottom: 6 }}>What feels like a real but doable start?</div>
+                  <div style={{ fontSize: 13, color: "var(--ash)", marginBottom: 22 }}>Your weekly goal. Beat it a few weeks and we&apos;ll nudge it up.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                    {goalVals.map((v) => (
+                      <button key={v} onClick={() => quizSet("goal", v)} style={{ textAlign: "left", borderRadius: 15, padding: "17px 18px", ...optStyle(quiz.goal === v), color: "var(--bone)", fontSize: 15.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>{v} approaches</span><span style={{ fontFamily: MONO, fontSize: 13, color: "var(--ash)" }}>/ week</span></button>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={quizNext} disabled={!quiz.goal} style={{ width: "100%", border: "none", borderRadius: 16, padding: 17, background: quiz.goal ? "var(--go)" : "var(--slate)", color: quiz.goal ? "#07130C" : "var(--ashDim)", fontWeight: 700, fontSize: 16, cursor: quiz.goal ? "pointer" : "not-allowed", marginTop: 22 }}>Continue</button>
+                </>
+              )}
+
+              {quizStep === 6 && (
+                <>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <div style={{ fontSize: 15, color: "var(--go)", fontFamily: MONO, letterSpacing: 1, marginBottom: 16 }}>ONE RULE</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 32, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.02, marginBottom: 18 }}>Approach with respect.</div>
+                    <div style={{ fontSize: 15.5, color: "var(--ash)", lineHeight: 1.55 }}>Take a &quot;no&quot; gracefully and move on. Never follow or pressure anyone. A no is a complete win — respect it.</div>
+                  </div>
+                  <button onClick={() => { quizSet("respect", true); quizNext(); }} style={{ width: "100%", border: "none", borderRadius: 16, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 20, textTransform: "uppercase", cursor: "pointer" }}>I agree</button>
+                </>
+              )}
+
+              {quizStep === 7 && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 26 }}>
+                    {[0, 0.2, 0.4].map((d, i) => <span key={i} style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--go)", animation: `aDot 1.2s ${d}s infinite` }} />)}
+                  </div>
+                  <div style={{ fontFamily: DISPLAY, fontSize: 28, color: "var(--bone)", textTransform: "uppercase" }}>Building your plan…</div>
+                </div>
+              )}
+
+              {quizStep === 8 && (
+                <>
+                  <div style={{ animation: "aFadeUp .5s both" }}>
+                    <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: 2, color: "var(--go)", textTransform: "uppercase", marginBottom: 8 }}>Your starting point</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 30, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1, marginBottom: 22 }}>The plan</div>
+                    <div style={{ background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 18, padding: 20, marginBottom: 12 }}><div style={{ fontSize: 13, color: "var(--ash)", marginBottom: 6 }}>Your baseline anxiety</div><div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><span style={{ fontFamily: DISPLAY, fontSize: 44, color: "var(--bone)", lineHeight: 0.9 }}>{quiz.anxiety}</span><span style={{ fontFamily: MONO, fontSize: 14, color: "var(--ash)" }}>/10 · we&apos;ll watch this fall</span></div></div>
+                    <div style={{ background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 18, padding: 20, marginBottom: 12 }}><div style={{ fontSize: 13, color: "var(--ash)", marginBottom: 6 }}>Your weekly goal</div><div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><span style={{ fontFamily: DISPLAY, fontSize: 44, color: "var(--go)", lineHeight: 0.9 }}>{quizGoal}</span><span style={{ fontFamily: MONO, fontSize: 14, color: "var(--ash)" }}>approaches / week</span></div></div>
+                    <div style={{ background: "var(--charcoal)", border: "1px solid var(--slate)", borderRadius: 18, padding: 20 }}><div style={{ fontSize: 13, color: "var(--ash)", marginBottom: 12 }}>What showing up tends to do:</div><svg viewBox="0 0 300 70" width="100%" style={{ display: "block" }}><path d="M6 12 C80 16, 150 44, 294 60" fill="none" stroke="var(--go)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="4 5" /><circle cx="6" cy="12" r="4" fill="var(--go)" /></svg><div style={{ fontSize: 12, color: "var(--ash)", fontStyle: "italic", marginTop: 8 }}>Illustrative — your real line is the one you&apos;re about to draw.</div></div>
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={quizNext} style={{ width: "100%", border: "none", borderRadius: 18, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 20, textTransform: "uppercase", cursor: "pointer", marginTop: 22 }}>Log your first rep</button>
+                </>
+              )}
+
+              {quizStep === 9 && (
+                <>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
+                    <div style={{ fontSize: 40, marginBottom: 18 }}>📲</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 28, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.02, marginBottom: 14 }}>Two taps to make it stick</div>
+                    <div style={{ fontSize: 14.5, color: "var(--ash)", lineHeight: 1.55, maxWidth: 320, margin: "0 auto 24px" }}>Add Approachly to your home screen and turn on reminders — that&apos;s how the weekly nudge reaches you.</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                      <button onClick={quizFinish} style={{ width: "100%", border: "none", borderRadius: 14, padding: 16, background: "var(--bone)", color: "var(--ink)", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>Add to Home Screen</button>
+                      <button onClick={quizFinish} style={{ width: "100%", border: "1px solid var(--slateHi)", borderRadius: 14, padding: 16, background: "var(--charcoal)", color: "var(--bone)", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>Enable reminders</button>
+                    </div>
+                  </div>
+                  <button onClick={quizFinish} style={{ width: "100%", border: "none", borderRadius: 18, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 20, textTransform: "uppercase", cursor: "pointer" }}>Enter Approachly</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
+      {toast && (
+        <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", background: "var(--slate)", border: "1px solid var(--slateHi)", color: "var(--bone)", padding: "12px 18px", borderRadius: 12, fontSize: 14, zIndex: 50, boxShadow: "0 8px 30px rgba(0,0,0,.5)", maxWidth: "90%", textAlign: "center" }}>{toast}</div>
+      )}
+    </div>
+  );
+}
