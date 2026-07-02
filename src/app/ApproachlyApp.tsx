@@ -312,10 +312,6 @@ function buildChart(trend: number[], W: number, H: number) {
   };
 }
 
-// Demo falling line for the marketing landing hero (static).
-const LANDING_TREND = [8.2, 7.6, 7.1, 6.3, 5.7, 4.9, 4.3];
-const LANDING_CHART = buildChart(LANDING_TREND, 360, 150);
-
 type Confetto = { id: number; style: CSSProperties };
 function makeConfetti(accent: string, enabled: boolean): Confetto[] {
   if (!enabled) return [];
@@ -1497,9 +1493,9 @@ export default function ApproachlyApp({
                   {[
                     {
                       n: 1,
-                      c: "var(--ember)",
+                      c: "var(--go)",
                       bg: "rgba(255,178,62,.14)",
-                      h: "Get hyped, before",
+                      h: "Get hyped",
                       p: "A 30-second primer to beat the freeze.",
                     },
                     {
@@ -4069,6 +4065,7 @@ export default function ApproachlyApp({
                 ...eyebrow("var(--go)"),
                 letterSpacing: 2,
                 marginBottom: 14,
+                textAlign: "center",
               }}
             >
               Swiping is hiding · 18+
@@ -4081,75 +4078,78 @@ export default function ApproachlyApp({
                 color: "var(--bone)",
                 lineHeight: 0.98,
                 marginBottom: 16,
+                textAlign: "center",
               }}
             >
               Most men freeze.
               <br />
-              Be the one
+              Be the one who
               <br />
-              who doesn&apos;t.
+              doesn&apos;t.
             </div>
             <div
               style={{
                 fontSize: 15,
                 color: "var(--ash)",
                 lineHeight: 1.55,
-                marginBottom: 22,
+                maxWidth: 360,
+                margin: "0 auto 22px",
+                textAlign: "center",
               }}
             >
               Walk up, say hi, get the number — without your mind going blank.
               Approachly trains the freeze out of you, one rep at a time.
             </div>
 
-            <div
-              style={{
-                background: "var(--charcoal)",
-                border: "1px solid var(--slate)",
-                borderRadius: 20,
-                padding: 18,
-                marginBottom: 24,
-              }}
-            >
-              <div style={{ ...eyebrow("var(--ash)"), marginBottom: 10 }}>
-                Your fear, falling
-              </div>
-              <svg
-                viewBox={`0 0 ${LANDING_CHART.chartW} ${LANDING_CHART.chartH}`}
-                width="100%"
-                style={{ display: "block" }}
+            <div style={{ margin: "6px auto 24px", maxWidth: 250 }}>
+              <div
+                style={{
+                  position: "relative",
+                  padding: 6,
+                  borderRadius: 48,
+                  background:
+                    "linear-gradient(150deg,#4a4b51,#2c2d32 30%,#1c1d21 55%,#34353b 80%,#202126)",
+                  boxShadow:
+                    "0 34px 80px -22px rgba(0,0,0,.85), 0 2px 5px rgba(0,0,0,.5)",
+                }}
               >
-                <defs>
-                  <linearGradient id="landFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="var(--go)"
-                      stopOpacity="0.22"
-                    />
-                    <stop offset="100%" stopColor="var(--go)" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d={LANDING_CHART.chartArea} fill="url(#landFill)" />
-                <path
-                  d={LANDING_CHART.chartLine}
-                  fill="none"
-                  stroke="var(--go)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle
-                  cx={LANDING_CHART.chartDotX}
-                  cy={LANDING_CHART.chartDotY}
-                  r="5"
-                  fill="var(--go)"
-                />
-              </svg>
+                <div
+                  style={{
+                    position: "relative",
+                    background: "#0b0b0d",
+                    borderRadius: 42,
+                    overflow: "hidden",
+                    paddingTop: 32,
+                    border: "3px solid #050506",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 12,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 78,
+                      height: 22,
+                      background: "#000",
+                      borderRadius: 999,
+                      zIndex: 3,
+                    }}
+                  />
+                  <img
+                    src="/screens/01-home.png"
+                    alt="Approachly home — your fear, falling"
+                    style={{ width: "100%", display: "block" }}
+                  />
+                </div>
+              </div>
               <div
                 style={{
                   fontSize: 12,
                   color: "var(--ash)",
                   fontStyle: "italic",
-                  marginTop: 8,
+                  marginTop: 12,
+                  textAlign: "center",
                 }}
               >
                 The real flex isn&apos;t a number — it&apos;s watching the fear
@@ -4198,9 +4198,9 @@ export default function ApproachlyApp({
               {[
                 {
                   n: "1",
-                  c: "var(--ember)",
+                  c: "var(--go)",
                   bg: "rgba(255,178,62,.14)",
-                  h: "Get hyped, before",
+                  h: "Get hyped",
                   p: "A 30-second primer beats the freeze in the moment that matters.",
                 },
                 {
@@ -4254,6 +4254,47 @@ export default function ApproachlyApp({
                     <div style={{ fontSize: 12.5, color: "var(--ash)" }}>
                       {s.p}
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                ...eyebrow("var(--ash)"),
+                letterSpacing: 2,
+                margin: "44px 0 16px",
+              }}
+            >
+              Inside the app
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {[
+                { img: "/screens/07-log-the-rep.png", cap: "Log in two taps" },
+                { img: "/screens/11-rep-reward.png", cap: "Bank the courage" },
+                { img: "/screens/08-progress.png", cap: "Climb the ranks" },
+              ].map((x) => (
+                <div key={x.img} style={{ flex: 1, minWidth: 0 }}>
+                  <img
+                    src={x.img}
+                    alt={x.cap}
+                    style={{
+                      width: "100%",
+                      display: "block",
+                      borderRadius: 12,
+                      border: "1px solid var(--slate)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--ash)",
+                      textAlign: "center",
+                      marginTop: 8,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {x.cap}
                   </div>
                 </div>
               ))}
