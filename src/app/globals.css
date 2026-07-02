@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /*
-  Approachly — APP design system, ported 1:1 from the Claude Design bundle
-  (Approachly.html). Green-primary courage trainer. The orange marketing landing
+  Couragely — APP design system, ported 1:1 from the Claude Design bundle
+  (Couragely.html). Green-primary courage trainer. The orange marketing landing
   lives in the separate `approachly/` project and is unrelated to these tokens.
 */
 
@@ -123,3 +123,16 @@ textarea:focus {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ---------- landing FAQ accordion (Good to know) ---------- */
+.lp-faq summary { list-style: none; }
+.lp-faq summary::-webkit-details-marker { display: none; }
+.lp-faq summary::after {
+  content: "+";
+  color: var(--go);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.lp-faq[open] summary::after { content: "–"; }

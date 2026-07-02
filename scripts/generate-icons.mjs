@@ -1,4 +1,4 @@
-// Generates Approachly PWA icons into public/icons from a vector flame mark.
+// Generates Couragely PWA icons into public/icons from a vector flame mark.
 // Run: node scripts/generate-icons.mjs
 import sharp from "sharp";
 import { mkdir } from "node:fs/promises";

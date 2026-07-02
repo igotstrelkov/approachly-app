@@ -3,6 +3,8 @@ import { Anton, Inter, Space_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { PwaRegister } from "./PwaRegister";
+import MetaPixel from "./MetaPixel";
+import Plausible from "./Plausible";
 import "./globals.css";
 
 const display = Anton({
@@ -18,10 +20,10 @@ const mono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Approachly — Beat the freeze",
+  title: "Couragely — Beat the freeze",
   description:
     "Gamify approaching people IRL. Reward the courage, never the outcome — and watch your approach anxiety fall.",
-  applicationName: "Approachly",
+  applicationName: "Couragely",
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
@@ -29,7 +31,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Approachly",
+    title: "Couragely",
   },
 };
 
@@ -55,6 +57,8 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <PwaRegister />
+        <MetaPixel />
+        <Plausible />
       </body>
     </html>
   );

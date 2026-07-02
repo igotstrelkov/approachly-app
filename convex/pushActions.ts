@@ -37,7 +37,7 @@ export const sendDueReminders = internalAction({
 
     for (const r of due) {
       const payload = JSON.stringify({
-        title: "Approachly",
+        title: "Couragely",
         body:
           r.remaining <= 1
             ? "One approach to hit this week's goal. Beat the freeze."
@@ -80,7 +80,7 @@ export const sendTest = internalAction({
       await ctx.runQuery(internal.push.allSubscriptions, {});
     let sent = 0, failed = 0;
     const payload = JSON.stringify({
-      title: "Approachly",
+      title: "Couragely",
       body: "Test nudge — reminders are wired up. Beat the freeze.",
       url: "/",
     });

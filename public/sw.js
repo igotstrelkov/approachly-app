@@ -1,4 +1,4 @@
-/* Approachly service worker — installable shell + web push (PRD §4/§8). */
+/* Couragely service worker — installable shell + web push (PRD §4/§8). */
 const CACHE = "approachly-v1";
 
 self.addEventListener("install", () => {
@@ -17,7 +17,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = {};
   }
-  const title = data.title || "Approachly";
+  const title = data.title || "Couragely";
   const body = data.body || "Beat the freeze this week. One rep.";
   event.waitUntil(
     self.registration.showNotification(title, {

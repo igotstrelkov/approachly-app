@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Approachly — Beat the freeze",
-    short_name: "Approachly",
+    name: "Couragely — Beat the freeze",
+    short_name: "Couragely",
     description:
       "Reward the courage, not the outcome. Watch your approach anxiety fall.",
     start_url: "/",

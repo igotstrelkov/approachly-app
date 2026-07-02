@@ -1,15 +1,17 @@
 "use client";
 
 /*
- * Approachly — full app, ported 1:1 from the Claude Design bundle.
+ * Couragely — full app, ported 1:1 from the Claude Design bundle.
  * PHASE 1: faithful, self-contained port with in-memory mock state (no backend),
  * so the UX matches the design exactly. PHASE 2 swaps this local state for Convex
  * queries/mutations + Clerk auth (see convex/ + SETUP.md).
  */
 
 import { subscribeThisDevice, unsubscribeThisDevice } from "@/lib/push";
+import { track, trackCustom } from "@/lib/analytics";
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
+import Image from "next/image";
 import {
   useEffect,
   useMemo,
@@ -529,6 +531,7 @@ export default function ApproachlyApp({
     Promise.resolve().then(() => setPendingPlan(null));
     completeOnboardingMut(plan)
       .then(() => {
+        track("CompleteRegistration");
         setReplaying(false);
         setQuizStep(0);
         setScreen("home");
@@ -697,6 +700,14 @@ export default function ApproachlyApp({
       showToast("Couldn't log that rep — try again.");
       return;
     }
+    // Meta Pixel: core activation signal (only fires on a real logged rep).
+    trackCustom("RepLogged", {
+      xp: res.xpAwarded,
+      modeTier: res.modeTier,
+      total: res.newTotal,
+      leveledUp: res.leveledUp,
+    });
+    if (res.newTotal === 1) trackCustom("FirstRep", { xp: res.xpAwarded });
     const mode = MODES[res.modeTier - 1];
     const newTotal = prevTotal + 1;
     const countMs = [10, 25, 50, 100, 250, 500];
@@ -756,6 +767,7 @@ export default function ApproachlyApp({
     if (isSignedIn) {
       completeOnboardingMut(plan)
         .then(() => {
+          track("CompleteRegistration");
           setReplaying(false);
           setQuizStep(0);
           nav("home");
@@ -780,7 +792,7 @@ export default function ApproachlyApp({
       setInstallEvent(null);
       quizFinish();
     } else if (isIOS && !isStandalone) {
-      // iOS has no programmatic install — guide, and let them tap "Enter Approachly" after.
+      // iOS has no programmatic install — guide, and let them tap "Enter Couragely" after.
       showToast("Tap the Share icon in Safari, then 'Add to Home Screen'.");
     } else {
       quizFinish();
@@ -963,7 +975,7 @@ export default function ApproachlyApp({
             animation: "aPulse 1.4s ease-in-out infinite",
           }}
         >
-          Approachly
+          Couragely
         </div>
       </div>
     );
@@ -1004,7 +1016,7 @@ export default function ApproachlyApp({
                 marginBottom: 34,
               }}
             >
-              <div style={{ ...eyebrow("var(--ember)"), letterSpacing: 2 }}>
+              <div style={{ ...eyebrow("var(--ash)"), letterSpacing: 2 }}>
                 Lvl {level} · {rank}
               </div>
               <button
@@ -1831,7 +1843,7 @@ export default function ApproachlyApp({
                     justifyContent: "center",
                   }}
                 >
-                  <div style={{ ...eyebrow("var(--ember)"), marginBottom: 12 }}>
+                  <div style={{ ...eyebrow("var(--ash)"), marginBottom: 12 }}>
                     Before you walk over
                   </div>
                   <div
@@ -2561,6 +2573,7 @@ export default function ApproachlyApp({
                       approachId: reward.approachId,
                       gotNumber: next,
                     });
+                    if (next) trackCustom("GotNumber");
                   } catch {
                     setNumberSaved(!next);
                     showToast("Couldn't save that.");
@@ -2901,7 +2914,7 @@ export default function ApproachlyApp({
                 marginTop: 18,
               }}
             >
-              Approachly · adults approaching adults · 18+
+              Couragely · adults approaching adults · 18+
             </div>
           </div>
         )}
@@ -3725,7 +3738,7 @@ export default function ApproachlyApp({
                         margin: "0 auto 24px",
                       }}
                     >
-                      Add Approachly to your home screen so the weekly nudge can
+                      Add Couragely to your home screen so the weekly nudge can
                       reach you. You can switch reminders on anytime from your
                       profile.
                     </div>
@@ -3763,7 +3776,7 @@ export default function ApproachlyApp({
                       cursor: "pointer",
                     }}
                   >
-                    Enter Approachly
+                    Enter Couragely
                   </button>
                 </>
               )}
@@ -3792,7 +3805,7 @@ export default function ApproachlyApp({
             </div>
             <div
               style={{
-                ...eyebrow("var(--ember)"),
+                ...eyebrow("var(--ash)"),
                 letterSpacing: 2.4,
                 marginBottom: 12,
               }}
@@ -4044,7 +4057,7 @@ export default function ApproachlyApp({
                   color: "var(--bone)",
                 }}
               >
-                APPROACH<span style={{ color: "var(--go)" }}>LY</span>
+                COURAGE<span style={{ color: "var(--go)" }}>LY</span>
               </div>
               <button
                 onClick={() => openSignIn()}
@@ -4081,7 +4094,7 @@ export default function ApproachlyApp({
                 textAlign: "center",
               }}
             >
-              Most men freeze.
+              Most men <span style={{ color: "var(--go)" }}>freeze.</span>
               <br />
               Be the one who
               <br />
@@ -4098,51 +4111,17 @@ export default function ApproachlyApp({
               }}
             >
               Walk up, say hi, get the number — without your mind going blank.
-              Approachly trains the freeze out of you, one rep at a time.
+              Couragely trains the freeze out of you, one rep at a time.
             </div>
 
             <div style={{ margin: "6px auto 24px", maxWidth: 250 }}>
-              <div
-                style={{
-                  position: "relative",
-                  padding: 6,
-                  borderRadius: 48,
-                  background:
-                    "linear-gradient(150deg,#4a4b51,#2c2d32 30%,#1c1d21 55%,#34353b 80%,#202126)",
-                  boxShadow:
-                    "0 34px 80px -22px rgba(0,0,0,.85), 0 2px 5px rgba(0,0,0,.5)",
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    background: "#0b0b0d",
-                    borderRadius: 42,
-                    overflow: "hidden",
-                    paddingTop: 32,
-                    border: "3px solid #050506",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 12,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      width: 78,
-                      height: 22,
-                      background: "#000",
-                      borderRadius: 999,
-                      zIndex: 3,
-                    }}
-                  />
-                  <img
-                    src="/screens/01-home.png"
-                    alt="Approachly home — your fear, falling"
-                    style={{ width: "100%", display: "block" }}
-                  />
-                </div>
-              </div>
+              <Image
+                src="/screens/screenshot.png"
+                alt="Couragely home — your fear, falling"
+                width={1516}
+                height={1834}
+                style={{ width: "100%", height: "auto", display: "block" }}
+              />
               <div
                 style={{
                   fontSize: 12,
@@ -4158,7 +4137,10 @@ export default function ApproachlyApp({
             </div>
 
             <button
-              onClick={() => nav("quiz")}
+              onClick={() => {
+                trackCustom("OnboardingStarted");
+                nav("quiz");
+              }}
               style={{
                 width: "100%",
                 border: "none",
@@ -4185,119 +4167,240 @@ export default function ApproachlyApp({
               Takes 30 seconds · No card · 18+
             </div>
 
-            <div
-              style={{
-                ...eyebrow("var(--ash)"),
-                letterSpacing: 2,
-                margin: "44px 0 16px",
-              }}
-            >
-              How it works
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ marginTop: 48 }}>
+              <div
+                style={{
+                  ...eyebrow("var(--ash)"),
+                  textAlign: "center",
+                  marginBottom: 10,
+                }}
+              >
+                Why it works
+              </div>
+              <div
+                style={{
+                  fontFamily: DISPLAY,
+                  fontSize: 26,
+                  textTransform: "uppercase",
+                  color: "var(--bone)",
+                  lineHeight: 1.06,
+                  textAlign: "center",
+                  marginBottom: 8,
+                }}
+              >
+                Volume kills the fear.
+              </div>
+              <div
+                style={{
+                  fontSize: 15,
+                  color: "var(--ash)",
+                  textAlign: "center",
+                  maxWidth: 380,
+                  margin: "0 auto 22px",
+                  lineHeight: 1.5,
+                }}
+              >
+                Rejection is just data. Showing up is the win. Here&apos;s how
+                it feels.
+              </div>
               {[
                 {
-                  n: "1",
-                  c: "var(--go)",
-                  bg: "rgba(255,178,62,.14)",
-                  h: "Get hyped",
-                  p: "A 30-second primer beats the freeze in the moment that matters.",
+                  img: "/screens/07-log-the-rep.png",
+                  tag: "No more spiraling",
+                  title: "Every approach counts — win or lose",
+                  copy: "She says no? You froze halfway? Still a rep. The only failure is not going — and we kill the shame that wrecks your week when you miss one.",
                 },
                 {
-                  n: "2",
-                  c: "var(--go)",
-                  bg: "rgba(52,209,126,.14)",
-                  h: "Log the rep",
-                  p: "Two taps. Great set or flop — both count. The only failure is not going.",
+                  img: "/screens/11-rep-reward.png",
+                  tag: "Instant payoff",
+                  title: "Every rep pays out",
+                  copy: "Log an approach and you bank XP and level up — Spark, Ignition, all the way to Bold. It turns the scariest thing you do all day into a game you actually want to keep playing. Win or lose, you always move up.",
                 },
                 {
-                  n: "3",
-                  c: "var(--go)",
-                  bg: "rgba(52,209,126,.14)",
-                  h: "Watch your fear fall",
-                  p: "Every rep drops your anxiety line and banks courage XP.",
+                  img: "/screens/08-progress.png",
+                  tag: "The transformation",
+                  title: "Watch the fear fade",
+                  copy: "Your anxiety drops and your streak climbs, week over week. The real flex isn't a number — it's becoming the guy who just says hi.",
                 },
-              ].map((s) => (
+              ].map((f) => (
                 <div
-                  key={s.n}
-                  style={{ display: "flex", gap: 13, alignItems: "center" }}
+                  key={f.title}
+                  style={{
+                    background: "var(--charcoal)",
+                    border: "1px solid var(--slate)",
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    marginBottom: 14,
+                  }}
                 >
                   <div
                     style={{
-                      width: 36,
-                      height: 36,
-                      flexShrink: 0,
-                      borderRadius: 11,
-                      background: s.bg,
-                      border: `1px solid ${s.c}`,
-                      color: s.c,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: MONO,
-                      fontSize: 14,
-                      fontWeight: 700,
+                      background: "#0e1216",
+                      padding: "18px 18px 0",
+                      textAlign: "center",
                     }}
                   >
-                    {s.n}
+                    <Image
+                      src={f.img}
+                      alt={f.title}
+                      width={880}
+                      height={1880}
+                      style={{
+                        width: "70%",
+                        maxWidth: 200,
+                        height: "auto",
+                        display: "inline-block",
+                        verticalAlign: "bottom",
+                        borderRadius: "16px 16px 0 0",
+                      }}
+                    />
                   </div>
-                  <div>
+                  <div style={{ padding: "16px 18px 20px" }}>
                     <div
                       style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        color: "var(--bone)",
+                        ...eyebrow("var(--ash)"),
+                        fontSize: 10.5,
+                        letterSpacing: 1.8,
                       }}
                     >
-                      {s.h}
+                      {f.tag}
                     </div>
-                    <div style={{ fontSize: 12.5, color: "var(--ash)" }}>
-                      {s.p}
+                    <div
+                      style={{
+                        fontFamily: DISPLAY,
+                        fontSize: 20,
+                        textTransform: "uppercase",
+                        color: "var(--bone)",
+                        lineHeight: 1.06,
+                        margin: "7px 0 8px",
+                      }}
+                    >
+                      {f.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        color: "var(--ash)",
+                        lineHeight: 1.55,
+                      }}
+                    >
+                      {f.copy}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div
-              style={{
-                ...eyebrow("var(--ash)"),
-                letterSpacing: 2,
-                margin: "44px 0 16px",
-              }}
-            >
-              Inside the app
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              {[
-                { img: "/screens/07-log-the-rep.png", cap: "Log in two taps" },
-                { img: "/screens/11-rep-reward.png", cap: "Bank the courage" },
-                { img: "/screens/08-progress.png", cap: "Climb the ranks" },
-              ].map((x) => (
-                <div key={x.img} style={{ flex: 1, minWidth: 0 }}>
-                  <img
-                    src={x.img}
-                    alt={x.cap}
-                    style={{
-                      width: "100%",
-                      display: "block",
-                      borderRadius: 12,
-                      border: "1px solid var(--slate)",
-                    }}
-                  />
+            <div style={{ marginTop: 48 }}>
+              <div
+                style={{
+                  ...eyebrow("var(--ash)"),
+                  textAlign: "center",
+                  marginBottom: 10,
+                }}
+              >
+                How it works
+              </div>
+              <div
+                style={{
+                  fontFamily: DISPLAY,
+                  fontSize: 26,
+                  textTransform: "uppercase",
+                  color: "var(--bone)",
+                  lineHeight: 1.06,
+                  textAlign: "center",
+                  marginBottom: 8,
+                }}
+              >
+                Four steps. One rising count.
+              </div>
+              <div
+                style={{
+                  fontSize: 15,
+                  color: "var(--ash)",
+                  textAlign: "center",
+                  maxWidth: 380,
+                  margin: "0 auto 22px",
+                  lineHeight: 1.5,
+                }}
+              >
+                No scripts. No tricks. Just reps that get easier.
+              </div>
+              <div style={{ display: "grid", gap: 12 }}>
+                {[
+                  {
+                    n: "1",
+                    h: "Get your mission",
+                    p: "One approach a day, sized to where you're at.",
+                  },
+                  {
+                    n: "2",
+                    h: "Take the shot",
+                    p: "Win or lose, going is the whole point.",
+                  },
+                  {
+                    n: "3",
+                    h: "Log it",
+                    p: "Win or lose — showing up is the win.",
+                  },
+                  {
+                    n: "4",
+                    h: "Watch the fear drop",
+                    p: "Your anxiety falls. Your count climbs.",
+                  },
+                ].map((s) => (
                   <div
+                    key={s.n}
                     style={{
-                      fontSize: 11,
-                      color: "var(--ash)",
-                      textAlign: "center",
-                      marginTop: 8,
-                      lineHeight: 1.3,
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      background: "var(--charcoal)",
+                      border: "1px solid var(--slate)",
+                      borderRadius: 16,
+                      padding: "14px 16px",
                     }}
                   >
-                    {x.cap}
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        flexShrink: 0,
+                        borderRadius: 8,
+                        background: GO_GRAD,
+                        color: "#07130C",
+                        display: "grid",
+                        placeItems: "center",
+                        fontFamily: MONO,
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {s.n}
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: "var(--bone)",
+                        }}
+                      >
+                        {s.h}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: "var(--ash)",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {s.p}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             <div
@@ -4306,10 +4409,19 @@ export default function ApproachlyApp({
                 border: "1px solid var(--slate)",
                 borderRadius: 20,
                 padding: 22,
-                margin: "36px 0",
+                margin: "48px 0 0",
               }}
             >
               <div
+                style={{
+                  ...eyebrow("var(--ash)"),
+                  textAlign: "center",
+                  marginBottom: 10,
+                }}
+              >
+                Why it matters
+              </div>
+              {/* <div
                 style={{
                   fontFamily: DISPLAY,
                   fontSize: 26,
@@ -4320,79 +4432,121 @@ export default function ApproachlyApp({
                 }}
               >
                 It was never about a number.
+              </div> */}
+              <div
+                style={{
+                  fontFamily: DISPLAY,
+                  fontSize: 26,
+                  textTransform: "uppercase",
+                  color: "var(--bone)",
+                  lineHeight: 1.06,
+                  textAlign: "center",
+                  marginBottom: 8,
+                }}
+              >
+                It was never about a number.
               </div>
               <div
                 style={{
                   fontSize: 14.5,
                   color: "var(--ash)",
                   lineHeight: 1.55,
+                  textAlign: "center",
                 }}
               >
                 It&apos;s about not going home wondering &ldquo;what if.&rdquo;
-                Rejection is just data. Showing up is the win — volume is how
-                the fear dies. And respect is built in: a &ldquo;no&rdquo; is a
-                complete win.
+                About not doing life alone. Couragely just gets you to the
+                first hello — the rest is yours.
               </div>
             </div>
 
-            <div
-              style={{
-                ...eyebrow("var(--ash)"),
-                letterSpacing: 2,
-                marginBottom: 14,
-              }}
-            >
-              Good to know
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                {
-                  q: "Is it free?",
-                  a: "Yes — the core loop is free, and signing up takes about 30 seconds.",
-                },
-                {
-                  q: "Is this pickup / manipulation?",
-                  a: "No. It's about beating your own anxiety and approaching respectfully — never tricks or scripts. A 'no' is a complete win.",
-                },
-                {
-                  q: "What if I freeze or get rejected?",
-                  a: "That's the point. Every rep counts, volume kills the fear, and there's zero shame in an off day.",
-                },
-              ].map((f) => (
-                <div
-                  key={f.q}
-                  style={{
-                    background: "var(--charcoal)",
-                    border: "1px solid var(--slate)",
-                    borderRadius: 14,
-                    padding: "14px 16px",
-                  }}
-                >
-                  <div
+            <div style={{ marginTop: 48 }}>
+              <div
+                style={{
+                  ...eyebrow("var(--ash)"),
+                  textAlign: "center",
+                  marginBottom: 10,
+                }}
+              >
+                Good to know
+              </div>
+              <div
+                style={{
+                  fontFamily: DISPLAY,
+                  fontSize: 26,
+                  textTransform: "uppercase",
+                  color: "var(--bone)",
+                  lineHeight: 1.06,
+                  textAlign: "center",
+                  marginBottom: 18,
+                }}
+              >
+                Questions, answered
+              </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {[
+                  {
+                    q: "Is it free?",
+                    a: "Yes — the core is free: your counter, streak, daily missions and progress. A Pro coach comes later; you'll never be charged without choosing to.",
+                  },
+                  {
+                    q: "Is this about tricks or manipulation?",
+                    a: "No. Couragely is about beating your own anxiety and approaching respectfully — never manipulating anyone. A 'no' is a complete win. The goal is your confidence, full stop.",
+                  },
+                  {
+                    q: "What if I freeze or get rejected?",
+                    a: "That's the point. Every rep counts. A freeze logs with zero shame and you reset tomorrow — volume is how the fear dies.",
+                  },
+                  {
+                    q: "How much time does it take?",
+                    a: "About two minutes a day: a quick warm-up before you go out, then two taps to log the rep after. That's the whole loop.",
+                  },
+                ].map((f) => (
+                  <details
+                    key={f.q}
+                    className="lp-faq"
                     style={{
-                      fontSize: 14.5,
-                      fontWeight: 700,
-                      color: "var(--bone)",
-                      marginBottom: 5,
+                      background: "var(--charcoal)",
+                      border: "1px solid var(--slate)",
+                      borderRadius: 14,
+                      padding: "2px 16px",
                     }}
                   >
-                    {f.q}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--ash)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {f.a}
-                  </div>
-                </div>
-              ))}
+                    <summary
+                      style={{
+                        cursor: "pointer",
+                        padding: "14px 0",
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "var(--bone)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      {f.q}
+                    </summary>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        color: "var(--ash)",
+                        lineHeight: 1.5,
+                        padding: "0 0 16px",
+                      }}
+                    >
+                      {f.a}
+                    </div>
+                  </details>
+                ))}
+              </div>
             </div>
 
             <button
-              onClick={() => nav("quiz")}
+              onClick={() => {
+                trackCustom("OnboardingStarted");
+                nav("quiz");
+              }}
               style={{
                 width: "100%",
                 border: "none",
@@ -4417,7 +4571,7 @@ export default function ApproachlyApp({
                 marginTop: 18,
               }}
             >
-              Approachly · adults approaching adults · 18+
+              Couragely · adults approaching adults · 18+
             </div>
           </div>
         )}
