@@ -441,9 +441,17 @@ export default function ApproachlyApp({
     freq: string | null;
     anxiety: number;
     motivation: string[];
+    barrier: string | null;
     goal: number | null;
     respect: boolean;
-  }>({ freq: null, anxiety: 5, motivation: [], goal: null, respect: false });
+  }>({
+    freq: null,
+    anxiety: 5,
+    motivation: [],
+    barrier: null,
+    goal: null,
+    respect: false,
+  });
   // ---- Convex + Clerk wiring ----
   const timezone = useMemo(() => {
     try {
@@ -490,6 +498,8 @@ export default function ApproachlyApp({
     weeklyGoal: number;
     baselineAnxiety: number;
     reason?: string;
+    approachFreq?: string;
+    mainBarrier?: string;
     timezone: string;
     reminderHour: number;
   };
@@ -750,9 +760,19 @@ export default function ApproachlyApp({
     });
   const quizNext = () => {
     const step = quizStep + 1;
+    // Per-step funnel analytics: reveals exactly which onboarding step bleeds.
+    trackCustom("OnboardingStep", { step });
     setQuizStep(step);
-    if (step === 7)
-      setTimeout(() => setQuizStep((s) => (s === 7 ? 8 : s)), 1900);
+    if (step === 8)
+      setTimeout(
+        () =>
+          setQuizStep((s) => {
+            if (s !== 8) return s;
+            trackCustom("OnboardingStep", { step: 9 });
+            return 9;
+          }),
+        1900,
+      );
     window.scrollTo(0, 0);
   };
   const quizBack = () => setQuizStep((s) => Math.max(0, s - 1));
@@ -761,6 +781,8 @@ export default function ApproachlyApp({
       weeklyGoal: quiz.goal || 3,
       baselineAnxiety: quiz.anxiety,
       reason: quiz.motivation[0] || undefined,
+      approachFreq: quiz.freq || undefined,
+      mainBarrier: quiz.barrier || undefined,
       timezone,
       reminderHour: 10,
     };
@@ -927,8 +949,8 @@ export default function ApproachlyApp({
   });
   // top-down climb: Legend at the summit, Rookie at the base
   const journeyClimb = [...journeyRanks].reverse();
-  const quizPct = Math.round((quizStep / 9) * 100);
-  const quizShowChrome = quizStep >= 1 && quizStep <= 6;
+  const quizPct = Math.round((quizStep / 10) * 100);
+  const quizShowChrome = quizStep >= 1 && quizStep <= 7;
   let goalVals = [2, 3, 5, 7];
   if (quiz.freq === "never" || quiz.freq === "rarely") goalVals = [2, 3, 4];
   else if (quiz.freq === "sometimes") goalVals = [3, 4, 5];
@@ -2984,7 +3006,6 @@ export default function ApproachlyApp({
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center",
-                      textAlign: "center",
                     }}
                   >
                     <div
@@ -2993,34 +3014,96 @@ export default function ApproachlyApp({
                         fontSize: 12,
                         letterSpacing: 1.5,
                         color: "var(--go)",
-                        marginBottom: 20,
+                        marginBottom: 16,
                       }}
                     >
-                      18+ · ADULTS APPROACHING ADULTS
+                      18+ · THE REAL GAME
                     </div>
                     <div
                       style={{
                         fontFamily: DISPLAY,
-                        fontSize: 30,
+                        fontSize: 34,
                         color: "var(--bone)",
                         textTransform: "uppercase",
-                        lineHeight: 1,
-                        marginBottom: 16,
+                        lineHeight: 0.98,
+                        marginBottom: 18,
                       }}
                     >
-                      Let&apos;s get you started
+                      Swiping is hiding.
+                    </div>
+                    <div
+                      style={{
+                        background: "var(--charcoal)",
+                        border: "1px solid var(--slate)",
+                        borderRadius: 18,
+                        padding: "16px 18px 14px",
+                        marginBottom: 18,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: MONO,
+                          fontSize: 10.5,
+                          letterSpacing: 1,
+                          color: "var(--ash)",
+                          marginBottom: 12,
+                        }}
+                      >
+                        WHERE CONFIDENCE ACTUALLY COMES FROM
+                      </div>
+                      <svg
+                        viewBox="0 0 300 96"
+                        width="100%"
+                        style={{ display: "block" }}
+                      >
+                        <path
+                          d="M8 78 C110 74, 190 40, 292 10"
+                          fill="none"
+                          stroke="var(--go)"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        />
+                        <circle cx="292" cy="10" r="4" fill="var(--go)" />
+                        <path
+                          d="M8 80 C110 79, 190 80, 292 82"
+                          fill="none"
+                          stroke="var(--ember)"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeDasharray="4 5"
+                        />
+                        <circle cx="292" cy="82" r="4" fill="var(--ember)" />
+                      </svg>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginTop: 8,
+                          fontFamily: MONO,
+                          fontSize: 11,
+                        }}
+                      >
+                        <span style={{ color: "var(--ember)" }}>
+                          Swiping · stuck
+                        </span>
+                        <span style={{ color: "var(--go)" }}>
+                          Real reps · climbing
+                        </span>
+                      </div>
                     </div>
                     <div
                       style={{
                         fontSize: 15,
                         color: "var(--ash)",
-                        lineHeight: 1.5,
-                        maxWidth: 320,
-                        margin: "0 auto",
+                        lineHeight: 1.55,
                       }}
                     >
-                      A few quick questions and we&apos;ll build your starting
-                      point — then you&apos;ll log your first rep.
+                      The apps reward waiting. Real life rewards reps — and
+                      approach anxiety only dies one way: doing it, in small
+                      doses, on repeat.{" "}
+                      <span style={{ color: "var(--bone)" }}>
+                        That&apos;s the whole app.
+                      </span>
                     </div>
                   </div>
                   <button
@@ -3055,7 +3138,8 @@ export default function ApproachlyApp({
                       marginBottom: 22,
                     }}
                   >
-                    Right now — how often do you actually walk over and say hi?
+                    You spot someone you&apos;d love to talk to. What usually
+                    happens?
                   </div>
                   <div
                     style={{
@@ -3065,10 +3149,13 @@ export default function ApproachlyApp({
                     }}
                   >
                     {[
-                      { v: "never", label: "Never" },
-                      { v: "rarely", label: "Rarely — a few times a year" },
-                      { v: "sometimes", label: "Sometimes — about monthly" },
-                      { v: "often", label: "Often — weekly or more" },
+                      { v: "never", label: "I look away and keep moving" },
+                      {
+                        v: "rarely",
+                        label: "I think about it… then the moment passes",
+                      },
+                      { v: "sometimes", label: "Sometimes I go for it" },
+                      { v: "often", label: "I walk over and say hi" },
                     ].map((o) => (
                       <button
                         key={o.v}
@@ -3274,6 +3361,82 @@ export default function ApproachlyApp({
                 <>
                   <div
                     style={{
+                      fontFamily: DISPLAY,
+                      fontSize: 26,
+                      color: "var(--bone)",
+                      textTransform: "uppercase",
+                      lineHeight: 1.04,
+                      marginBottom: 6,
+                    }}
+                  >
+                    What&apos;s really stopping you?
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--ash)",
+                      marginBottom: 22,
+                    }}
+                  >
+                    The honest one — this is the thing the reps dissolve.
+                  </div>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 11 }}
+                  >
+                    {[
+                      { v: "rejection", label: "Fear of rejection" },
+                      { v: "words", label: "I don't know what to say" },
+                      {
+                        v: "creepy",
+                        label: "Worried I'll seem creepy or awkward",
+                      },
+                      { v: "freeze", label: "I freeze and overthink it" },
+                      { v: "timing", label: 'Waiting for the "perfect" moment' },
+                    ].map((o) => (
+                      <button
+                        key={o.v}
+                        onClick={() => quizSet("barrier", o.v)}
+                        style={{
+                          textAlign: "left",
+                          borderRadius: 15,
+                          padding: "16px 18px",
+                          ...optStyle(quiz.barrier === o.v),
+                          color: "var(--bone)",
+                          fontSize: 15,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={quizNext}
+                    disabled={!quiz.barrier}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      borderRadius: 16,
+                      padding: 17,
+                      background: quiz.barrier ? "var(--go)" : "var(--slate)",
+                      color: quiz.barrier ? "#07130C" : "var(--ashDim)",
+                      fontWeight: 700,
+                      fontSize: 16,
+                      cursor: quiz.barrier ? "pointer" : "not-allowed",
+                      marginTop: 22,
+                    }}
+                  >
+                    Continue
+                  </button>
+                </>
+              )}
+
+              {quizStep === 5 && (
+                <>
+                  <div
+                    style={{
                       flex: 1,
                       display: "flex",
                       flexDirection: "column",
@@ -3330,7 +3493,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 5 && (
+              {quizStep === 6 && (
                 <>
                   <div
                     style={{
@@ -3414,7 +3577,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 6 && (
+              {quizStep === 7 && (
                 <>
                   <div
                     style={{
@@ -3481,7 +3644,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 7 && (
+              {quizStep === 8 && (
                 <div
                   style={{
                     flex: 1,
@@ -3519,7 +3682,7 @@ export default function ApproachlyApp({
                 </div>
               )}
 
-              {quizStep === 8 && (
+              {quizStep === 9 && (
                 <>
                   <div style={{ animation: "aFadeUp .5s both" }}>
                     <div
@@ -3685,7 +3848,7 @@ export default function ApproachlyApp({
                   </div>
                   <div style={{ flex: 1 }} />
                   <button
-                    onClick={quizNext}
+                    onClick={quizFinish}
                     style={{
                       width: "100%",
                       border: "none",
@@ -3705,7 +3868,7 @@ export default function ApproachlyApp({
                 </>
               )}
 
-              {quizStep === 9 && (
+              {quizStep === 10 && (
                 <>
                   <div
                     style={{

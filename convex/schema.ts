@@ -17,6 +17,8 @@ export default defineSchema({
     weeklyGoal: v.number(),
     baselineAnxiety: v.optional(v.number()), // day-zero point on the line
     reason: v.optional(v.string()), // the "why", seeds the Hype flow
+    approachFreq: v.optional(v.string()), // onboarding: what they usually do when they see someone
+    mainBarrier: v.optional(v.string()), // onboarding: what's really stopping them (seeds the warm-up)
     reminderHour: v.optional(v.number()), // local hour for the weekly push
 
     // progression
