@@ -9,9 +9,10 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useAuth, useClerk } from "@clerk/nextjs";
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { subscribeThisDevice, unsubscribeThisDevice } from "@/lib/push";
 
 const DISPLAY = "var(--font-display), Anton, sans-serif";
 const MONO = "var(--font-space-mono), 'Space Mono', monospace";
@@ -24,8 +25,20 @@ const levelForXp = (xp: number) => {
   return L;
 };
 const xpForLevel = (L: number) => 75 * L * (L - 1);
+const PRESTIGE_START = 20;
+const PRESTIGE_BAND = 5;
+function toRoman(n: number): string {
+  const map: [number, string][] = [
+    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
+    [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+  ];
+  let r = "", x = Math.max(1, Math.floor(n));
+  for (const [v, s] of map) while (x >= v) { r += s; x -= v; }
+  return r;
+}
 const rankForLevel = (L: number) =>
-  L >= 20 ? "Legend" : L >= 15 ? "Ironclad" : L >= 10 ? "Fearless" : L >= 5 ? "Bold" : "Rookie";
+  L >= PRESTIGE_START ? `Legend ${toRoman(Math.floor((L - PRESTIGE_START) / PRESTIGE_BAND) + 1)}`
+  : L >= 15 ? "Ironclad" : L >= 10 ? "Fearless" : L >= 5 ? "Bold" : "Rookie";
 
 type Mode = { n: number; name: string; emoji: string; color: string; blurb: string };
 const MODES: Mode[] = [
@@ -103,6 +116,10 @@ const eyebrow = (color: string): CSSProperties => ({ fontFamily: MONO, fontSize:
 
 type Screen = "home" | "hype" | "log" | "reward" | "you" | "quiz";
 type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
 
 export default function ApproachlyApp({
   startScreen = "Onboarding",
@@ -122,7 +139,6 @@ export default function ApproachlyApp({
   const [reward, setReward] = useState<ReturnType<typeof buildReward> | null>(null);
   const [displayXp, setDisplayXp] = useState(0);
   const [displayReps, setDisplayReps] = useState(0);
-  const [shared, setShared] = useState(false);
   const [numberSaved, setNumberSaved] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [hypeStep, setHypeStep] = useState<"primer" | "countdown" | "go">("primer");
@@ -137,11 +153,22 @@ export default function ApproachlyApp({
   }, []);
   const { isLoaded, isSignedIn } = useAuth();
   const { openSignIn, openSignUp, signOut } = useClerk();
+  const { user: clerkUser } = useUser();
   const me = useQuery(api.users.getMe, isSignedIn ? {} : "skip");
   const dash = useQuery(api.approaches.dashboard, isSignedIn ? { timezone } : "skip");
   const logRepMut = useMutation(api.approaches.logRep);
   const completeOnboardingMut = useMutation(api.users.completeOnboarding);
+  const setWeeklyGoalMut = useMutation(api.users.setWeeklyGoal);
   const markNumberMut = useMutation(api.approaches.markNumber);
+  const pushStatus = useQuery(api.push.getStatus, isSignedIn ? {} : "skip");
+  const saveSubMut = useMutation(api.push.saveSubscription);
+  const removeSubMut = useMutation(api.push.removeSubscription);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [goalEditing, setGoalEditing] = useState(false);
+  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const onboarded = !!me?.onboarded;
   const booting = !isLoaded || (isSignedIn && me === undefined);
 
@@ -166,7 +193,15 @@ export default function ApproachlyApp({
   // After sign-up, persist the quiz the user already completed.
   useEffect(() => {
     if (!isSignedIn || me === undefined || !pendingRef.current) return;
-    if (me?.onboarded) { pendingRef.current = null; return; }
+    if (me?.onboarded) {
+      // Signed into an existing account after re-walking the quiz — keep their
+      // data and drop them on Home instead of re-onboarding.
+      pendingRef.current = null;
+      setReplaying(false);
+      setQuizStep(0);
+      setScreen("home");
+      return;
+    }
     const plan = pendingRef.current;
     pendingRef.current = null;
     completeOnboardingMut(plan)
@@ -196,6 +231,23 @@ export default function ApproachlyApp({
   useEffect(() => () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (intervalRef.current) clearInterval(intervalRef.current);
+  }, []);
+
+  // PWA install: capture the deferred prompt (Chrome/Android/desktop) + detect platform.
+  useEffect(() => {
+    const onBIP = (e: Event) => { e.preventDefault(); setInstallEvent(e as BeforeInstallPromptEvent); };
+    window.addEventListener("beforeinstallprompt", onBIP);
+    const nav = navigator as Navigator & { standalone?: boolean };
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)").matches || nav.standalone === true;
+    setIsStandalone(!!standalone);
+    setIsIOS(/iphone|ipad|ipod/i.test(navigator.userAgent));
+    const onInstalled = () => setInstallEvent(null);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBIP);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
   const haptic = (ms = 12) => { try { navigator.vibrate?.(ms); } catch {} };
@@ -258,7 +310,7 @@ export default function ApproachlyApp({
     const mode = MODES[res.modeTier - 1];
     const newTotal = prevTotal + 1;
     setReward(buildReward(res.approachId, res.xpAwarded, mode, res.countToday, res.streak, res.leveledUp, res.level, res.rankUp, res.newRank));
-    setDisplayXp(0); setDisplayReps(newTotal - 1); setShared(false); setNumberSaved(false);
+    setDisplayXp(0); setDisplayReps(newTotal - 1); setNumberSaved(false);
     setScreen("reward"); window.scrollTo(0, 0);
     animateReward(res.xpAwarded, newTotal);
   };
@@ -291,11 +343,65 @@ export default function ApproachlyApp({
     }
   };
 
+  // PWA install (onboarding "Add to Home Screen")
+  const handleInstall = async () => {
+    if (installEvent) {
+      try {
+        installEvent.prompt();
+        await installEvent.userChoice;
+      } catch {
+        /* ignore */
+      }
+      setInstallEvent(null);
+      quizFinish();
+    } else if (isIOS && !isStandalone) {
+      // iOS has no programmatic install — guide, and let them tap "Enter Approachly" after.
+      showToast("Tap the Share icon in Safari, then 'Add to Home Screen'.");
+    } else {
+      quizFinish();
+    }
+  };
+
+  // weekly reminder push
+  const pushOn = !!pushStatus?.subscribed;
+  const DOW_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const remHour = pushStatus?.reminderHour ?? 10;
+  const scheduleLabel = `${DOW_NAMES[pushStatus?.reminderDow ?? 0]} · ${(remHour % 12) || 12}:00 ${remHour < 12 ? "AM" : "PM"}`;
+  const toggleReminders = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (!pushOn) {
+        if (!VAPID) { showToast("Push isn't configured."); return; }
+        const sub = await subscribeThisDevice(VAPID);
+        await saveSubMut(sub);
+        showToast("Weekly reminders on.");
+      } else {
+        const endpoint = await unsubscribeThisDevice();
+        if (endpoint) await removeSubMut({ endpoint });
+        showToast("Weekly reminders off.");
+      }
+    } catch (e) {
+      const msg = (e as Error)?.message;
+      showToast(
+        msg === "denied" ? "Enable notifications in your browser settings."
+        : msg === "unsupported" ? "Reminders aren't supported on this device."
+        : "Couldn't update reminders."
+      );
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
   // ---------- derived ----------
   const level = levelForXp(user.totalXp);
   const base = xpForLevel(level), next = xpForLevel(level + 1), into = user.totalXp - base, need = next - base;
   const xpToNext = need - into, levelPct = Math.round((into / need) * 100), rank = rankForLevel(level);
   const chart = buildChart(trend, 360, 190);
+  const fearLabel =
+    trend.length < 2 ? "Your starting line"
+    : trend[0] - trend[trend.length - 1] >= 0 ? "Your fear, falling"
+    : "Your fear, lately";
   const isFresh = user.totalApproaches === 0;
   const baselineAnx = trend.length ? Number(trend[0]).toFixed(1) : "—";
   const hasRepsToday = user.repsToday >= 1;
@@ -344,7 +450,7 @@ export default function ApproachlyApp({
 
         {/* ============ HOME ============ */}
         {screen === "home" && (
-          <div style={{ padding: "54px 22px 44px" }}>
+          <div style={{ padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 44px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 34 }}>
               <div style={{ ...eyebrow("var(--ember)"), letterSpacing: 2 }}>Lvl {level} · {rank}</div>
               <button onClick={() => nav("you")} style={{ ...iconBtn, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -374,7 +480,7 @@ export default function ApproachlyApp({
               </>
             ) : (
               <>
-                <div style={{ ...eyebrow("var(--ash)"), marginBottom: 10 }}>Your fear, falling</div>
+                <div style={{ ...eyebrow("var(--ash)"), marginBottom: 10 }}>{fearLabel}</div>
                 <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
                     <span style={{ fontFamily: DISPLAY, fontSize: 76, lineHeight: 0.82, color: "var(--bone)" }}>{chart.chartCurrent}</span>
@@ -475,7 +581,7 @@ export default function ApproachlyApp({
 
         {/* ============ HYPE ============ */}
         {screen === "hype" && (
-          <div style={{ minHeight: "100vh", background: "radial-gradient(120% 70% at 50% 0%, #241a10 0%, var(--ink) 55%)", display: "flex", flexDirection: "column", padding: "52px 24px 34px" }}>
+          <div style={{ minHeight: "100vh", background: "radial-gradient(120% 70% at 50% 0%, #241a10 0%, var(--ink) 55%)", display: "flex", flexDirection: "column", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 24px 34px" }}>
             {hypeStep === "primer" && (
               <>
                 <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
@@ -531,7 +637,7 @@ export default function ApproachlyApp({
 
         {/* ============ LOG ============ */}
         {screen === "log" && (
-          <div style={{ minHeight: "100vh", padding: "52px 22px 34px", display: "flex", flexDirection: "column" }}>
+          <div style={{ minHeight: "100vh", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 34px", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
               <button onClick={() => nav("home")} style={{ ...iconBtn }}>✕</button>
             </div>
@@ -565,7 +671,7 @@ export default function ApproachlyApp({
 
         {/* ============ REWARD ============ */}
         {screen === "reward" && reward && (
-          <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", padding: "52px 24px 32px" }}>
+          <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 24px 32px" }}>
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
               {reward.confetti.map((c) => <div key={c.id} style={c.style} />)}
             </div>
@@ -612,13 +718,7 @@ export default function ApproachlyApp({
               <div style={{ flex: 1 }} />
 
               <div style={{ width: "100%", animation: "aFadeUp .5s .5s both" }}>
-                <div style={{ display: "flex", gap: 11 }}>
-                  <button onClick={() => setShared(true)} style={{ flexShrink: 0, border: "1px solid var(--slateHi)", borderRadius: 18, padding: "0 20px", background: "var(--charcoal)", color: "var(--bone)", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12 v7 a1 1 0 0 0 1 1 h14 a1 1 0 0 0 1 -1 v-7" /><path d="M12 15 V3" /><path d="M8 7 l4 -4 l4 4" /></svg>
-                    {shared ? "Shared ✓" : "Share"}
-                  </button>
-                  <button onClick={() => nav("home")} style={{ flex: 1, border: "none", borderRadius: 18, padding: 16, cursor: "pointer", background: GO_GRAD, color: "#07130C", fontWeight: 700, fontSize: 16 }}>Continue</button>
-                </div>
+                <button onClick={() => nav("home")} style={{ width: "100%", border: "none", borderRadius: 18, padding: 16, cursor: "pointer", background: GO_GRAD, color: "#07130C", fontWeight: 700, fontSize: 16 }}>Continue</button>
               </div>
             </div>
           </div>
@@ -626,38 +726,70 @@ export default function ApproachlyApp({
 
         {/* ============ YOU ============ */}
         {screen === "you" && (
-          <div style={{ minHeight: "100vh", padding: "52px 22px 40px" }}>
+          <div style={{ minHeight: "100vh", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 40px" }}>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
               <button onClick={() => nav("home")} style={{ ...iconBtn }}>‹</button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 15, marginBottom: 30 }}>
               <div style={{ width: 60, height: 60, borderRadius: 19, background: "linear-gradient(135deg,var(--ember),var(--flare))", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: DISPLAY, fontSize: 26, color: "#1a0f08" }}>{level}</div>
-              <div><div style={{ fontWeight: 700, fontSize: 19, color: "var(--bone)" }}>{rank}</div><div style={{ fontFamily: MONO, fontSize: 12, color: "var(--ash)" }}>Level {level} · {user.totalApproaches} approaches</div></div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 19, color: "var(--bone)" }}>{rank}</div>
+                <div style={{ fontFamily: MONO, fontSize: 12, color: "var(--ash)" }}>Level {level} · {user.totalApproaches} approach{user.totalApproaches === 1 ? "" : "es"}</div>
+                {clerkUser?.primaryEmailAddress?.emailAddress && (
+                  <div style={{ fontSize: 12, color: "var(--ashDim)", marginTop: 3 }}>{clerkUser.primaryEmailAddress.emailAddress}</div>
+                )}
+              </div>
             </div>
 
             <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: 1.5, color: "var(--ash)", textTransform: "uppercase", marginBottom: 8 }}>Your plan</div>
             <div>
-              {[
-                { l: "Weekly goal", r: <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--go)", fontWeight: 700 }}>{user.weeklyGoal} / week</span> },
-                { l: "Weekly reminder", r: <span style={{ fontSize: 13, color: "var(--ash)" }}>Sun · 10:00 AM</span> },
-                { l: "Week rolls over", r: <span style={{ fontSize: 13, color: "var(--ash)" }}>4:00 AM local</span> },
-              ].map((row, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--slate)" }}><span style={{ fontSize: 14.5, color: "var(--bone)" }}>{row.l}</span>{row.r}</div>
-              ))}
+              {/* Weekly goal — tap to edit */}
+              <button onClick={() => setGoalEditing((v) => !v)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", background: "none", border: "none", borderBottom: "1px solid var(--slate)", cursor: "pointer", textAlign: "left" }}>
+                <span style={{ fontSize: 14.5, color: "var(--bone)" }}>Weekly goal</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 14, color: "var(--go)", fontWeight: 700 }}>{user.weeklyGoal} / week</span>
+                  <span style={{ color: "var(--ash)", fontSize: 17, display: "inline-block", transform: goalEditing ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
+                </span>
+              </button>
+              {goalEditing && (
+                <div style={{ display: "flex", gap: 8, padding: "14px 0", borderBottom: "1px solid var(--slate)" }}>
+                  {[2, 3, 4, 5, 6, 7].map((g) => {
+                    const sel = user.weeklyGoal === g;
+                    return (
+                      <button key={g} onClick={async () => { setGoalEditing(false); if (g === user.weeklyGoal) return; try { await setWeeklyGoalMut({ weeklyGoal: g }); showToast("Weekly goal updated."); } catch { showToast("Couldn't update goal."); } }}
+                        style={{ flex: 1, height: 44, borderRadius: 12, cursor: "pointer", background: sel ? "rgba(52,209,126,.12)" : "var(--charcoal)", border: `1.5px solid ${sel ? "var(--go)" : "var(--slate)"}`, color: sel ? "var(--go)" : "var(--bone)", fontFamily: MONO, fontSize: 15, fontWeight: 700 }}>{g}</button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Weekly reminder — toggle switch */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--slate)", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 14.5, color: "var(--bone)" }}>Weekly reminder</div>
+                  <div style={{ fontSize: 12, color: "var(--ash)", marginTop: 2 }}>{pushBusy ? "…" : pushOn ? scheduleLabel : "A weekly nudge toward your goal"}</div>
+                </div>
+                <button role="switch" aria-checked={pushOn} aria-label="Weekly reminder" onClick={toggleReminders} disabled={pushBusy}
+                  style={{ width: 46, height: 28, borderRadius: 999, background: pushOn ? "var(--go)" : "var(--slate)", border: "none", position: "relative", cursor: pushBusy ? "default" : "pointer", flexShrink: 0, opacity: pushBusy ? 0.6 : 1, transition: "background .2s" }}>
+                  <span style={{ position: "absolute", top: 3, left: pushOn ? 21 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.4)" }} />
+                </button>
+              </div>
+
+              {/* Week rolls over */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--slate)" }}>
+                <span style={{ fontSize: 14.5, color: "var(--bone)" }}>Week rolls over</span>
+                <span style={{ fontSize: 13, color: "var(--ash)" }}>4:00 AM local</span>
+              </div>
             </div>
 
-            <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: 1.5, color: "var(--ash)", textTransform: "uppercase", margin: "26px 0 8px" }}>Privacy</div>
-            <div><div style={{ padding: "16px 0", fontSize: 14.5, color: "var(--bone)", borderBottom: "1px solid var(--slate)", cursor: "pointer" }}>Export my data</div></div>
-
-            <button onClick={() => { setReplaying(true); setQuizStep(0); nav("quiz"); }} style={{ width: "100%", marginTop: 26, background: "var(--charcoal)", border: "1px solid var(--slateHi)", borderRadius: 14, padding: 15, color: "var(--bone)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>▶ Replay onboarding</button>
-            <button onClick={async () => { bootedRef.current = false; setReplaying(false); setQuizStep(0); setScreen("quiz"); await signOut(); }} style={{ width: "100%", marginTop: 11, background: "none", border: "1px solid var(--slate)", borderRadius: 14, padding: 15, color: "var(--ash)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
+            <button onClick={async () => { bootedRef.current = false; setQuizStep(0); setScreen("quiz"); await signOut(); }} style={{ width: "100%", marginTop: 30, background: "none", border: "1px solid var(--slate)", borderRadius: 14, padding: 15, color: "var(--ash)", fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
             <div style={{ textAlign: "center", fontSize: 11, color: "var(--ashDim)", marginTop: 18 }}>Approachly · adults approaching adults · 18+</div>
           </div>
         )}
 
         {/* ============ ONBOARDING / QUIZ ============ */}
         {screen === "quiz" && (
-          <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "52px 22px 32px" }}>
+          <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "calc(env(safe-area-inset-top, 0px) + 20px) 22px 32px" }}>
             {quizShowChrome && (
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 30 }}>
                 <button onClick={quizBack} style={{ width: 34, height: 34, flexShrink: 0, borderRadius: 10, border: "1px solid var(--slate)", background: "var(--charcoal)", color: "var(--ash)", fontSize: 16, cursor: "pointer" }}>‹</button>
@@ -669,7 +801,7 @@ export default function ApproachlyApp({
                 <>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
                     <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: 1.5, color: "var(--go)", marginBottom: 20 }}>18+ · ADULTS APPROACHING ADULTS</div>
-                    <div style={{ fontFamily: DISPLAY, fontSize: 40, color: "var(--bone)", textTransform: "uppercase", lineHeight: 0.98, marginBottom: 18 }}>Beat the freeze. One rep at a time.</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 40, color: "var(--bone)", textTransform: "uppercase", lineHeight: 0.98, marginBottom: 18 }}>Beat the freeze.<br />One rep at a time.</div>
                     <div style={{ fontSize: 15, color: "var(--ash)", lineHeight: 1.5, maxWidth: 320, margin: "0 auto" }}>A few quick questions and we&apos;ll build your starting point — then you&apos;ll log your first rep.</div>
                   </div>
                   <button onClick={quizNext} style={{ width: "100%", border: "none", borderRadius: 18, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 21, textTransform: "uppercase", cursor: "pointer" }}>I&apos;m 18+ · Start</button>
@@ -782,12 +914,11 @@ export default function ApproachlyApp({
                 <>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
                     <div style={{ fontSize: 40, marginBottom: 18 }}>📲</div>
-                    <div style={{ fontFamily: DISPLAY, fontSize: 28, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.02, marginBottom: 14 }}>Two taps to make it stick</div>
-                    <div style={{ fontSize: 14.5, color: "var(--ash)", lineHeight: 1.55, maxWidth: 320, margin: "0 auto 24px" }}>Add Approachly to your home screen and turn on reminders — that&apos;s how the weekly nudge reaches you.</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                      <button onClick={quizFinish} style={{ width: "100%", border: "none", borderRadius: 14, padding: 16, background: "var(--bone)", color: "var(--ink)", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>Add to Home Screen</button>
-                      <button onClick={quizFinish} style={{ width: "100%", border: "1px solid var(--slateHi)", borderRadius: 14, padding: 16, background: "var(--charcoal)", color: "var(--bone)", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>Enable reminders</button>
-                    </div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 28, color: "var(--bone)", textTransform: "uppercase", lineHeight: 1.02, marginBottom: 14 }}>Make it stick</div>
+                    <div style={{ fontSize: 14.5, color: "var(--ash)", lineHeight: 1.55, maxWidth: 320, margin: "0 auto 24px" }}>Add Approachly to your home screen so the weekly nudge can reach you. You can switch reminders on anytime from your profile.</div>
+                    {!isStandalone && (
+                      <button onClick={handleInstall} style={{ width: "100%", border: "none", borderRadius: 14, padding: 16, background: "var(--bone)", color: "var(--ink)", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>Add to Home Screen</button>
+                    )}
                   </div>
                   <button onClick={quizFinish} style={{ width: "100%", border: "none", borderRadius: 18, padding: 18, background: GO_GRAD, color: "#07130C", fontFamily: DISPLAY, fontSize: 20, textTransform: "uppercase", cursor: "pointer" }}>Enter Approachly</button>
                 </>

@@ -52,9 +52,9 @@ body {
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* respect device safe areas when installed as a PWA */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Only the bottom safe area here; each screen folds the top inset into its own
+     padding via calc(env(safe-area-inset-top) + …) so they never stack. */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 input,
 button,

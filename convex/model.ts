@@ -40,8 +40,24 @@ export function xpForLevel(level: number): number {
   return 75 * level * (level - 1);
 }
 
+const PRESTIGE_START = 20; // level where "Legend" begins
+const PRESTIGE_BAND = 5; // levels per Legend numeral
+
+function toRoman(n: number): string {
+  const map: [number, string][] = [
+    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
+    [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+  ];
+  let r = "", x = Math.max(1, Math.floor(n));
+  for (const [v, s] of map) while (x >= v) { r += s; x -= v; }
+  return r;
+}
+
 export function rankForLevel(level: number): string {
-  if (level >= 20) return "Legend";
+  if (level >= PRESTIGE_START) {
+    const prestige = Math.floor((level - PRESTIGE_START) / PRESTIGE_BAND) + 1; // Legend I at L20
+    return `Legend ${toRoman(prestige)}`;
+  }
   if (level >= 15) return "Ironclad";
   if (level >= 10) return "Fearless";
   if (level >= 5) return "Bold";

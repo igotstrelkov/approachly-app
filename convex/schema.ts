@@ -39,8 +39,23 @@ export default defineSchema({
     streakLongest: v.number(),
     lastGoalWeekKey: v.optional(v.string()), // most recent week the goal was hit
 
+    // weekly reminder push (PRD §8)
+    reminderDow: v.optional(v.number()), // 0=Sun … 6=Sat (default 0)
+    lastRemindedWeekKey: v.optional(v.string()), // dedupe: one nudge per week
+
     lastRepAt: v.optional(v.number()),
   }).index("by_token", ["tokenId"]),
+
+  // Web-push subscriptions — one row per installed device.
+  pushSubscriptions: defineTable({
+    userId: v.id("users"),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
 
   approaches: defineTable({
     userId: v.id("users"),

@@ -49,22 +49,9 @@ export const completeOnboarding = mutation({
       onboarded: true,
     };
     if (existing) {
-      // Re-onboarding resets the journey (matches the design's "replay onboarding").
-      await ctx.db.patch(existing._id, {
-        ...plan,
-        totalXp: 0,
-        level: 1,
-        totalApproaches: 0,
-        greatSets: 0,
-        gotNumbers: 0,
-        repsToday: 0,
-        currentDayKey: undefined,
-        repsThisWeek: 0,
-        currentWeekKey: undefined,
-        streakWeeks: 0,
-        streakLongest: 0,
-        lastGoalWeekKey: undefined,
-      });
+      // Existing account → NEVER wipe progress. Onboarding is one-time; if a
+      // returning user walks the quiz again (e.g. after signing out) we keep all
+      // their data intact. Plan changes happen via setWeeklyGoal, not here.
       return existing._id;
     }
     return ctx.db.insert("users", {

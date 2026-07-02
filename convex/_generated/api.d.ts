@@ -9,7 +9,10 @@
  */
 
 import type * as approaches from "../approaches.js";
+import type * as crons from "../crons.js";
 import type * as model from "../model.js";
+import type * as push from "../push.js";
+import type * as pushActions from "../pushActions.js";
 import type * as users from "../users.js";
 
 import type {
@@ -20,7 +23,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   approaches: typeof approaches;
+  crons: typeof crons;
   model: typeof model;
+  push: typeof push;
+  pushActions: typeof pushActions;
   users: typeof users;
 }>;
 
