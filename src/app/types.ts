@@ -6,7 +6,8 @@ export type Screen =
   | "reward"
   | "you"
   | "quiz"
-  | "ranks";
+  | "ranks"
+  | "ladder";
 export type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
 
 // Onboarding step order — the single source of truth for the quiz sequence.

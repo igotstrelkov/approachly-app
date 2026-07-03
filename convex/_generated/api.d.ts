@@ -11,6 +11,7 @@
 import type * as approaches from "../approaches.js";
 import type * as crons from "../crons.js";
 import type * as feedback from "../feedback.js";
+import type * as ladder from "../ladder.js";
 import type * as model from "../model.js";
 import type * as push from "../push.js";
 import type * as pushActions from "../pushActions.js";
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   approaches: typeof approaches;
   crons: typeof crons;
   feedback: typeof feedback;
+  ladder: typeof ladder;
   model: typeof model;
   push: typeof push;
   pushActions: typeof pushActions;

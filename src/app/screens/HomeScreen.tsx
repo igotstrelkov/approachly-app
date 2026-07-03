@@ -1,6 +1,7 @@
 "use client";
 import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
+import { LADDER_THRESHOLD } from "../lib/ladder";
 
 export function HomeScreen() {
   const {
@@ -19,6 +20,16 @@ export function HomeScreen() {
     levelPct,
     nextRankHint,
     xpToNext,
+    ladderTier,
+    tierCleared,
+    mastered,
+    currentMission,
+    tierData,
+    startMission,
+    swapMission,
+    stepDownTier,
+    stepUpTier,
+    logFreeform,
   } = useApp();
   return (
     <div
@@ -369,6 +380,220 @@ export function HomeScreen() {
       )}
 
       {/* ACTIONS */}
+      {!mastered && (
+        <>
+          {/* Today's mission — the hero action (graduated exposure ladder) */}
+          <div
+            style={{
+              background: "var(--charcoal)",
+              border: "1px solid var(--go)",
+              borderRadius: 20,
+              padding: 20,
+              marginTop: 32,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              <span style={{ ...eyebrow("var(--go)"), letterSpacing: 1.5 }}>
+                Today&apos;s mission · Tier {ladderTier}
+              </span>
+              <button
+                onClick={() => nav("ladder")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--ash)",
+                  fontSize: 12.5,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  fontFamily: MONO,
+                }}
+              >
+                The ladder ›
+              </button>
+            </div>
+            <div
+              style={{
+                fontFamily: DISPLAY,
+                fontSize: 25,
+                color: "var(--bone)",
+                lineHeight: 1.05,
+                textTransform: "uppercase",
+                marginBottom: 8,
+              }}
+            >
+              {currentMission}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--ash)",
+                lineHeight: 1.45,
+                marginBottom: 16,
+              }}
+            >
+              {tierData.why}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: "flex", gap: 5, flex: 1 }}>
+                {Array.from({ length: LADDER_THRESHOLD }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 6,
+                      borderRadius: 999,
+                      background:
+                        i < tierCleared ? "var(--go)" : "var(--slate)",
+                    }}
+                  />
+                ))}
+              </div>
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 11.5,
+                  color: "var(--ash)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {tierCleared}/{LADDER_THRESHOLD} to tier up
+              </span>
+            </div>
+            <button
+              onClick={startMission}
+              style={{
+                width: "100%",
+                border: "none",
+                borderRadius: 16,
+                padding: 16,
+                background: GO_GRAD,
+                color: "#07130C",
+                fontFamily: DISPLAY,
+                fontSize: 19,
+                textTransform: "uppercase",
+                cursor: "pointer",
+                marginBottom: 12,
+              }}
+            >
+              Start mission →
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={swapMission}
+                style={{
+                  flex: 1,
+                  background: "var(--slate)",
+                  border: "1px solid var(--slateHi)",
+                  borderRadius: 10,
+                  padding: "9px 0",
+                  color: "var(--ash)",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Swap
+              </button>
+              <button
+                onClick={stepDownTier}
+                disabled={ladderTier <= 1}
+                style={{
+                  flex: 1,
+                  background: "var(--slate)",
+                  border: "1px solid var(--slateHi)",
+                  borderRadius: 10,
+                  padding: "9px 0",
+                  color: "var(--ash)",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: ladderTier <= 1 ? "default" : "pointer",
+                  opacity: ladderTier <= 1 ? 0.4 : 1,
+                }}
+              >
+                Too much
+              </button>
+              <button
+                onClick={stepUpTier}
+                disabled={ladderTier >= 5}
+                style={{
+                  flex: 1,
+                  background: "var(--slate)",
+                  border: "1px solid var(--slateHi)",
+                  borderRadius: 10,
+                  padding: "9px 0",
+                  color: "var(--ash)",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: ladderTier >= 5 ? "default" : "pointer",
+                  opacity: ladderTier >= 5 ? 0.4 : 1,
+                }}
+              >
+                Too easy
+              </button>
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              margin: "18px 0",
+            }}
+          >
+            <div style={{ flex: 1, height: 1, background: "var(--slate)" }} />
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: 11,
+                letterSpacing: 2,
+                color: "var(--ashDim)",
+              }}
+            >
+              OR
+            </span>
+            <div style={{ flex: 1, height: 1, background: "var(--slate)" }} />
+          </div>
+          <button
+            onClick={logFreeform}
+            style={{
+              width: "100%",
+              background: "var(--charcoal)",
+              border: "1px solid var(--slate)",
+              borderRadius: 16,
+              padding: "16px 18px",
+              cursor: "pointer",
+              textAlign: "center",
+            }}
+          >
+            <span
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--bone)" }}
+            >
+              Just log a rep
+            </span>
+            <span style={{ fontSize: 15, color: "var(--ash)" }}>
+              {" "}
+              — I did my own thing
+            </span>
+          </button>
+        </>
+      )}
+      {mastered && (
       <div
         style={{
           display: "flex",
@@ -476,7 +701,23 @@ export function HomeScreen() {
               : "You walked over. Bank it."}
           </div>
         </button>
+          <button
+            onClick={() => nav("ladder")}
+            style={{
+              background: "none",
+              border: "1px solid var(--slate)",
+              borderRadius: 14,
+              padding: 13,
+              color: "var(--ash)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Revisit the ladder ›
+          </button>
       </div>
+      )}
 
       {isFresh && (
         <div style={{ marginTop: 42 }}>

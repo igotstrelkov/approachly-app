@@ -1,10 +1,11 @@
 "use client";
 import { useApp } from "../AppContext";
 import { AnxRow } from "../components/AnxRow";
-import { DISPLAY, GO_GRAD, iconBtn } from "../theme";
+import { DISPLAY, GO_GRAD, iconBtn, MONO } from "../theme";
 
 export function LogScreen() {
-  const { nav, setDraft, draft, optStyle, setAnx, anxScale, logIt } = useApp();
+  const { nav, setDraft, draft, optStyle, setAnx, anxScale, logIt, activeMission } =
+    useApp();
   return (
           <div
             style={{
@@ -25,6 +26,43 @@ export function LogScreen() {
                 ✕
               </button>
             </div>
+            {activeMission && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "rgba(52,209,126,.1)",
+                  border: "1px solid var(--go)",
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  marginBottom: 18,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 10.5,
+                    letterSpacing: 1.2,
+                    color: "var(--go)",
+                    textTransform: "uppercase",
+                    flexShrink: 0,
+                  }}
+                >
+                  Tier {activeMission.tier}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: "var(--bone)",
+                    fontWeight: 600,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {activeMission.text}
+                </span>
+              </div>
+            )}
             <div
               style={{
                 fontFamily: DISPLAY,

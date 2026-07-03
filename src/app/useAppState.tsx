@@ -24,6 +24,7 @@ import {
   xpForLevel,
 } from "./lib/levels";
 import { MODES, modeFor, type Mode } from "./lib/modes";
+import { missionText, ladderTierData, startingTier } from "./lib/ladder";
 import { MONO } from "./theme";
 import { STEP, STEP_ORDER, type Screen, type Vibe } from "./types";
 
@@ -33,6 +34,7 @@ export type Plan = {
   reason?: string;
   approachFreq?: string;
   mainBarrier?: string;
+  ladderTier?: number;
   timezone: string;
   reminderHour: number;
 };
@@ -69,6 +71,11 @@ export function useAppState({
     "primer",
   );
   const [hypeCount, setHypeCount] = useState(3);
+  // The in-progress mission attempt (tier + text). null = a freeform, off-plan rep.
+  const [activeMission, setActiveMission] = useState<{
+    tier: number;
+    text: string;
+  } | null>(null);
   const [quizStep, setQuizStep] = useState(0);
   const [quiz, setQuiz] = useState<{
     freq: string | null;
@@ -111,6 +118,9 @@ export function useAppState({
   const removeAllSubMut = useMutation(api.push.removeAllSubscriptions);
   const setReminderFreqMut = useMutation(api.push.setReminderFreq);
   const submitFeedbackMut = useMutation(api.feedback.submit);
+  const swapMissionMut = useMutation(api.ladder.swapMission);
+  const stepDownTierMut = useMutation(api.ladder.stepDownTier);
+  const stepUpTierMut = useMutation(api.ladder.stepUpTier);
   const [pushBusy, setPushBusy] = useState(false);
   const [goalEditing, setGoalEditing] = useState(false);
   // iOS delivers web-push only to a home-screen-installed PWA, not a Safari tab.
@@ -137,6 +147,7 @@ export function useAppState({
     reason?: string;
     approachFreq?: string;
     mainBarrier?: string;
+    ladderTier?: number;
     timezone: string;
     reminderHour: number;
   };
@@ -246,6 +257,7 @@ export function useAppState({
 
   // hype
   const startHype = () => {
+    setActiveMission(null); // standalone hype is off-plan
     setHypeStep("primer");
     setHypeCount(3);
     nav("hype");
@@ -316,6 +328,46 @@ export function useAppState({
     setDraft((d) => ({ ...d, anxiety: v }));
   };
 
+  // ---- exposure ladder ("missions") ----
+  const ladderTier = me?.ladderTier ?? 1;
+  const tierCleared = me?.tierCleared ?? 0;
+  const missionIdx = me?.missionIdx ?? 0;
+  const mastered = !!me?.mastered;
+  const currentMission = missionText(ladderTier, missionIdx);
+  const tierData = ladderTierData(ladderTier);
+  const startMission = () => {
+    if (mastered) return;
+    setActiveMission({ tier: ladderTier, text: currentMission });
+    setHypeStep("primer");
+    setHypeCount(3);
+    nav("hype");
+  };
+  const logFreeform = () => {
+    setActiveMission(null);
+    startLog();
+  };
+  const swapMission = async () => {
+    try {
+      await swapMissionMut();
+    } catch {
+      showToast("Couldn't swap — try again.");
+    }
+  };
+  const stepDownTier = async () => {
+    try {
+      await stepDownTierMut();
+    } catch {
+      showToast("Couldn't change tier — try again.");
+    }
+  };
+  const stepUpTier = async () => {
+    try {
+      await stepUpTierMut();
+    } catch {
+      showToast("Couldn't change tier — try again.");
+    }
+  };
+
   function buildReward(
     approachId: Id<"approaches">,
     xp: number,
@@ -328,6 +380,10 @@ export function useAppState({
     newRank: string,
     milestone: { label: string; color: string } | null,
     isFirstEver: boolean,
+    missionComplete: boolean,
+    tierUp: boolean,
+    newLadderTier: number,
+    ladderMastered: boolean,
   ) {
     return {
       approachId,
@@ -341,6 +397,10 @@ export function useAppState({
       newRank,
       milestone,
       isFirstEver,
+      missionComplete,
+      tierUp,
+      newLadderTier,
+      ladderMastered,
       eyebrow: isFirstEver
         ? "Your first approach. Ever."
         : repsToday === 1
@@ -375,6 +435,7 @@ export function useAppState({
         gotNumber: false,
         note: draft.note.trim() || undefined,
         timezone,
+        tier: activeMission?.tier,
       });
     } catch {
       showToast("Couldn't log that rep — try again.");
@@ -393,7 +454,7 @@ export function useAppState({
     const isFirstEver = res.newTotal === 1;
     const countMs = [10, 25, 50, 100, 250, 500];
     const milestone = isFirstEver
-      ? { label: "Day one · you beat the freeze", color: "var(--go)" }
+      ? { label: "Day one · you beat the freeze", color: "#34D17E" }
       : res.isNewPeak
         ? { label: `New peak · ${mode.emoji} ${mode.name}`, color: mode.color }
         : countMs.includes(res.newTotal)
@@ -412,6 +473,10 @@ export function useAppState({
         res.newRank,
         milestone,
         isFirstEver,
+        res.missionComplete,
+        res.tierUp,
+        res.newLadderTier,
+        res.ladderMastered,
       ),
     );
     setDisplayXp(0);
@@ -420,6 +485,7 @@ export function useAppState({
     setScreen("reward");
     window.scrollTo(0, 0);
     animateReward(res.xpAwarded, newTotal);
+    setActiveMission(null);
   };
 
   // quiz
@@ -458,6 +524,7 @@ export function useAppState({
       reason: quiz.motivation[0] || undefined,
       approachFreq: quiz.freq || undefined,
       mainBarrier: quiz.barrier || undefined,
+      ladderTier: startingTier(quiz.freq, quiz.anxiety),
       timezone,
       reminderHour: 10,
     };
@@ -737,6 +804,18 @@ export function useAppState({
     buildReward,
     animateReward,
     logIt,
+    startMission,
+    logFreeform,
+    swapMission,
+    stepDownTier,
+    stepUpTier,
+    ladderTier,
+    tierCleared,
+    missionIdx,
+    mastered,
+    currentMission,
+    tierData,
+    activeMission,
     quizSet,
     quizToggle,
     quizNext,

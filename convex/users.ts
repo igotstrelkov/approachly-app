@@ -36,6 +36,7 @@ export const completeOnboarding = mutation({
     reason: v.optional(v.string()),
     approachFreq: v.optional(v.string()),
     mainBarrier: v.optional(v.string()),
+    ladderTier: v.optional(v.number()),
     timezone: v.optional(v.string()),
     reminderHour: v.optional(v.number()),
   },
@@ -71,6 +72,10 @@ export const completeOnboarding = mutation({
       repsThisWeek: 0,
       streakWeeks: 0,
       streakLongest: 0,
+      ladderTier: args.ladderTier ?? 1,
+      tierCleared: 0,
+      missionIdx: 0,
+      mastered: false,
       ...plan,
     });
   },

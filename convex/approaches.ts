@@ -35,6 +35,7 @@ export const logRep = mutation({
     gotNumber: v.boolean(),
     note: v.optional(v.string()),
     timezone: v.optional(v.string()),
+    tier: v.optional(v.number()), // exposure-ladder tier being completed (mission)
   },
   handler: async (ctx, args) => {
     const user = await meOrThrow(ctx);
@@ -74,6 +75,31 @@ export const logRep = mutation({
       lastGoalWeekKey = weekKey;
     }
 
+    // Exposure ladder ("missions"): a tagged mission log advances the current
+    // rung. THRESHOLD cleared → tier up; clearing tier 5 → mastery (once).
+    const LADDER_THRESHOLD = 3;
+    const isMission = args.tier != null;
+    let ladderTier = user.ladderTier ?? 1;
+    let tierCleared = user.tierCleared ?? 0;
+    let mastered = user.mastered ?? false;
+    let missionComplete = false,
+      tierUp = false,
+      ladderMastered = false;
+    if (isMission && !mastered) {
+      missionComplete = true;
+      tierCleared += 1;
+      if (tierCleared >= LADDER_THRESHOLD) {
+        if (ladderTier < 5) {
+          ladderTier += 1;
+          tierCleared = 0;
+          tierUp = true;
+        } else {
+          mastered = true;
+          ladderMastered = true;
+        }
+      }
+    }
+
     const approachId = await ctx.db.insert("approaches", {
       userId: user._id,
       timestamp: now,
@@ -85,6 +111,7 @@ export const logRep = mutation({
       note: args.note,
       xpAwarded: xp,
       modeReached: modeTier,
+      tier: args.tier,
     });
 
     await ctx.db.patch(user._id, {
@@ -103,6 +130,9 @@ export const logRep = mutation({
       lastGoalWeekKey,
       lastRepAt: now,
       timezone: tz,
+      ladderTier,
+      tierCleared,
+      mastered,
     });
 
     // Everything the Reward screen needs (PRD §6).
@@ -120,6 +150,10 @@ export const logRep = mutation({
       streak: streakWeeks,
       isNewPeak,
       newTotal,
+      missionComplete,
+      tierUp,
+      newLadderTier: ladderTier,
+      ladderMastered,
     };
   },
 });

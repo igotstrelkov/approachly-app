@@ -3,6 +3,7 @@ import { trackCustom } from "@/lib/analytics";
 import { useApp } from "../AppContext";
 import { hexA } from "../lib/chart";
 import { DISPLAY, GO_GRAD, MONO } from "../theme";
+import { tierName } from "../lib/ladder";
 
 export function RewardScreen() {
   const {
@@ -152,85 +153,91 @@ export function RewardScreen() {
                 </div>
               </div>
 
-              {reward.leveledUp && (
-                <div
-                  style={{
-                    marginTop: 18,
-                    padding: "10px 20px",
-                    borderRadius: 999,
-                    background: "rgba(255,178,62,.12)",
-                    border: "1px solid rgba(255,178,62,.5)",
-                    animation: "aPop .5s .3s both",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: 12,
-                      letterSpacing: 1.5,
-                      color: "var(--ember)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    ⬆ Level up · Level {reward.newLevel}
-                  </span>
-                </div>
-              )}
-              {reward.rankUp && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    textAlign: "center",
-                    animation: "aPop .5s .4s both",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: 11,
-                      letterSpacing: 2,
-                      color: "var(--ash)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    New rank
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: DISPLAY,
-                      fontSize: 24,
-                      color: "var(--ember)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {reward.newRank}
-                  </div>
-                </div>
-              )}
-              {reward.milestone && (
-                <div
-                  style={{
-                    marginTop: 16,
-                    padding: "10px 20px",
-                    borderRadius: 999,
-                    background: hexA(reward.milestone.color, 0.12),
-                    border: `1px solid ${hexA(reward.milestone.color, 0.5)}`,
-                    animation: "aPop .5s .45s both",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: 12,
-                      letterSpacing: 1.5,
-                      color: reward.milestone.color,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    ⭐ {reward.milestone.label}
-                  </span>
-                </div>
-              )}
+              {/* Priority headline (single) + remaining events as small chips —
+                  avoids a wall of pills. Order = priority. */}
+              {(() => {
+                const go = "#34D17E",
+                  ember = "#FFB23E";
+                const events: {
+                  key: string;
+                  label: string;
+                  color: string;
+                  icon: string;
+                  big?: boolean;
+                }[] = [];
+                if (reward.ladderMastered)
+                  events.push({ key: "mastered", label: "Ladder mastered", color: go, icon: "👑", big: true });
+                if (reward.rankUp)
+                  events.push({ key: "rank", label: `New rank · ${reward.newRank}`, color: ember, icon: "⬆" });
+                if (reward.tierUp)
+                  events.push({ key: "tier", label: `Tier up · ${tierName(reward.newLadderTier)}`, color: go, icon: "▲" });
+                if (reward.leveledUp)
+                  events.push({ key: "level", label: `Level up · Level ${reward.newLevel}`, color: ember, icon: "⬆" });
+                if (reward.milestone)
+                  events.push({ key: "ms", label: reward.milestone.label, color: reward.milestone.color, icon: "⭐" });
+                if (reward.missionComplete)
+                  events.push({ key: "mission", label: "Mission complete", color: go, icon: "✓" });
+                if (events.length === 0) return null;
+                const [head, ...chips] = events;
+                return (
+                  <>
+                    <div
+                      style={{
+                        marginTop: 18,
+                        padding: head.big ? "12px 26px" : "10px 20px",
+                        borderRadius: 999,
+                        background: hexA(head.color, 0.14),
+                        border: `1px solid ${hexA(head.color, 0.55)}`,
+                        animation: "aPop .5s .3s both",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: head.big ? DISPLAY : MONO,
+                          fontSize: head.big ? 19 : 12,
+                          letterSpacing: head.big ? 0.5 : 1.5,
+                          fontWeight: 700,
+                          color: head.color,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {head.icon} {head.label}
+                      </span>
+                    </div>
+                    {chips.length > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          justifyContent: "center",
+                          marginTop: 10,
+                          maxWidth: 300,
+                        }}
+                      >
+                        {chips.map((c) => (
+                          <span
+                            key={c.key}
+                            style={{
+                              fontFamily: MONO,
+                              fontSize: 10,
+                              letterSpacing: 0.5,
+                              color: c.color,
+                              background: hexA(c.color, 0.1),
+                              border: `1px solid ${hexA(c.color, 0.35)}`,
+                              borderRadius: 999,
+                              padding: "5px 10px",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {c.icon} {c.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               <div
                 style={{

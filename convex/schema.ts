@@ -19,6 +19,12 @@ export default defineSchema({
     reason: v.optional(v.string()), // the "why", seeds the Hype flow
     approachFreq: v.optional(v.string()), // onboarding: what they usually do when they see someone
     mainBarrier: v.optional(v.string()), // onboarding: what's really stopping them (seeds the warm-up)
+
+    // graduated exposure ladder ("missions")
+    ladderTier: v.optional(v.number()), // 1–5, current rung
+    tierCleared: v.optional(v.number()), // missions cleared at current tier (resets on tier-up)
+    missionIdx: v.optional(v.number()), // which mission in the tier pool is shown (swap increments)
+    mastered: v.optional(v.boolean()), // graduated tier 5
     reminderHour: v.optional(v.number()), // local hour for the weekly push
 
     // progression
@@ -73,6 +79,7 @@ export default defineSchema({
     note: v.optional(v.string()),
     xpAwarded: v.number(),
     modeReached: v.number(), // daily mode tier reached with this rep
+    tier: v.optional(v.number()), // exposure-ladder tier this rep completed (mission), if any
   })
     .index("by_user", ["userId"])
     .index("by_user_week", ["userId", "weekKey"]),
