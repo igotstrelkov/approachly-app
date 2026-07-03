@@ -57,7 +57,7 @@ export function useAppState({
     vibe: Vibe;
     anxiety: number;
     note: string;
-  }>({ vibe: null, anxiety: 5, note: "" });
+  }>({ vibe: null, anxiety: 0, note: "" });
   const [reward, setReward] = useState<ReturnType<typeof buildReward> | null>(
     null,
   );
@@ -308,7 +308,7 @@ export function useAppState({
 
   // log
   const startLog = () => {
-    setDraft({ vibe: null, anxiety: 5, note: "" });
+    setDraft({ vibe: null, anxiety: 0, note: "" });
     nav("log");
   };
   const setAnx = (v: number) => {
