@@ -6,6 +6,12 @@ import { DISPLAY, GO_GRAD, iconBtn, MONO } from "../theme";
 export function LogScreen() {
   const { nav, setDraft, draft, optStyle, setAnx, anxScale, logIt, activeMission } =
     useApp();
+  const canLog = !!draft.vibe && draft.anxiety >= 1;
+  const label = !draft.vibe
+    ? "Pick how it went ↑"
+    : draft.anxiety < 1
+      ? "Rate your nerves ↑"
+      : "Log it";
   return (
           <div
             style={{
@@ -95,7 +101,15 @@ export function LogScreen() {
                   ...optStyle(draft.vibe === "GREAT_SET"),
                 }}
               >
-                <div style={{ fontSize: 22, marginBottom: 8 }}>✦</div>
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: "var(--go)",
+                    marginBottom: 12,
+                  }}
+                />
                 <div
                   style={{
                     fontWeight: 700,
@@ -126,7 +140,15 @@ export function LogScreen() {
                   border: `1.5px solid ${draft.vibe === "STILL_A_REP" ? "var(--amber)" : "var(--slate)"}`,
                 }}
               >
-                <div style={{ fontSize: 22, marginBottom: 8 }}>◆</div>
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: "var(--amber)",
+                    marginBottom: 12,
+                  }}
+                />
                 <div
                   style={{
                     fontWeight: 700,
@@ -183,21 +205,21 @@ export function LogScreen() {
             <div style={{ flex: 1 }} />
             <button
               onClick={logIt}
-              disabled={!draft.vibe}
+              disabled={!canLog}
               style={{
                 width: "100%",
                 border: "none",
                 borderRadius: 20,
                 padding: 19,
-                cursor: draft.vibe ? "pointer" : "not-allowed",
-                background: draft.vibe ? GO_GRAD : "var(--slate)",
-                color: draft.vibe ? "#07130C" : "var(--ashDim)",
+                cursor: canLog ? "pointer" : "not-allowed",
+                background: canLog ? GO_GRAD : "var(--slate)",
+                color: canLog ? "#07130C" : "var(--ashDim)",
                 fontFamily: DISPLAY,
                 fontSize: 22,
                 textTransform: "uppercase",
               }}
             >
-              Log it
+              {label}
             </button>
           </div>
   );
