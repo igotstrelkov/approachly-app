@@ -378,6 +378,42 @@ export function HomeScreen() {
         }}
       >
         <button
+          onClick={startLog}
+          style={{
+            width: "100%",
+            cursor: "pointer",
+            border: "none",
+            background: GO_GRAD,
+            color: "#07130C",
+            borderRadius: 22,
+            padding: "24px 20px",
+            boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: DISPLAY,
+              fontSize: 32,
+              textTransform: "uppercase",
+              lineHeight: 1,
+            }}
+          >
+            {isFresh ? "Log your first rep" : "Log a rep"}
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              opacity: 0.72,
+              marginTop: 6,
+            }}
+          >
+            {isFresh
+              ? "You walked over. This is the one."
+              : "You walked over. Bank it."}
+          </div>
+        </button>
+        <button
           onClick={startHype}
           style={{
             width: "100%",
@@ -425,7 +461,7 @@ export function HomeScreen() {
                 color: "var(--bone)",
               }}
             >
-              I&apos;m out — hype me
+              Hype me up
             </div>
             <div
               style={{
@@ -434,47 +470,10 @@ export function HomeScreen() {
                 marginTop: 1,
               }}
             >
-              Before you walk over. 30 seconds.
+              One breath before you go.
             </div>
           </div>
           <span style={{ color: "var(--ember)", fontSize: 22 }}>›</span>
-        </button>
-
-        <button
-          onClick={startLog}
-          style={{
-            width: "100%",
-            cursor: "pointer",
-            border: "none",
-            background: GO_GRAD,
-            color: "#07130C",
-            borderRadius: 22,
-            padding: "24px 20px",
-            boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: DISPLAY,
-              fontSize: 32,
-              textTransform: "uppercase",
-              lineHeight: 1,
-            }}
-          >
-            {isFresh ? "Log your first rep" : "Log a rep"}
-          </div>
-          <div
-            style={{
-              fontSize: 12.5,
-              fontWeight: 600,
-              opacity: 0.72,
-              marginTop: 6,
-            }}
-          >
-            {isFresh
-              ? "You walked over. This is the one."
-              : "You walked over. Bank it."}
-          </div>
         </button>
       </div>
 
