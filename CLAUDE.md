@@ -1,3 +1,13 @@
+# Claude Code — Couragely
+
+The canonical project guide is **AGENTS.md** (imported below). It covers the
+stack, the `useAppState` / `AppContext` / `screens/` architecture (where to make
+each kind of change), the design tokens + styling conventions, the onboarding
+`STEP` map, analytics, the Convex args-in-lockstep gotcha, and the pre-deploy
+checklist. **Read it before making changes.** Verify every change with
+`npx tsc --noEmit` (0 errors) and `npx eslint`; the dev server runs on
+`next dev -p 3200`.
+
 @AGENTS.md
 
 <!-- convex-ai-start -->

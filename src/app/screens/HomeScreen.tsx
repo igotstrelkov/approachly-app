@@ -693,7 +693,7 @@ export function HomeScreen() {
                   style={{
                     fontFamily: MONO,
                     fontSize: 14,
-                    color: "var(--ash)",
+                    color: "var(--bone)",
                   }}
                 >
                   {row.r}
