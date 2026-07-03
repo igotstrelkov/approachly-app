@@ -542,7 +542,7 @@ export function LandingScreen() {
           marginTop: 18,
         }}
       >
-        Couragely · adults approaching adults · 18+
+        Couragely · Swiping is hiding · 18+
       </div>
     </div>
   );

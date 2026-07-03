@@ -49,8 +49,8 @@ export default function Privacy() {
       <p style={p}>
         Couragely (&ldquo;we&rdquo;) is a courage-training app that helps you
         approach people in real life. This page explains what we collect, why,
-        and your choices. We&apos;re privacy-first: we collect the minimum needed
-        to run the app, and we never sell your data.
+        and your choices. We&apos;re privacy-first: we collect the minimum
+        needed to run the app, and we never sell your data.
       </p>
 
       <h2 style={h2}>What we collect</h2>
@@ -99,16 +99,16 @@ export default function Privacy() {
       <h2 style={h2}>Sharing</h2>
       <p style={p}>
         We do not sell your personal information. We share data only with the
-        service providers that operate the app — authentication (Clerk),
-        backend and hosting (Convex, Vercel), and analytics (Plausible, Meta) —
-        and only as needed to provide the service.
+        service providers that operate the app — authentication (Clerk), backend
+        and hosting (Convex, Vercel), and analytics (Plausible, Meta) — and only
+        as needed to provide the service.
       </p>
 
       <h2 style={h2}>Your choices</h2>
       <p style={p}>
-        You can turn weekly reminders off inside the app at any time, and you can
-        request access to or deletion of your account and data by contacting us.
-        Deleting your account removes your logged reps and profile.
+        You can turn weekly reminders off inside the app at any time, and you
+        can request access to or deletion of your account and data by contacting
+        us. Deleting your account removes your logged reps and profile.
       </p>
 
       <h2 style={h2}>Not medical advice</h2>
@@ -127,9 +127,7 @@ export default function Privacy() {
         .
       </p>
 
-      <p style={{ ...muted, marginTop: 28 }}>
-        18+ · adults approaching adults.
-      </p>
+      <p style={{ ...muted, marginTop: 28 }}></p>
     </div>
   );
 }

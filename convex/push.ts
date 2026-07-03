@@ -32,6 +32,7 @@ export const getStatus = query({
       .take(20);
     return {
       subscribed: subs.length > 0,
+      reminderFreq: user.reminderFreq ?? "daily",
       reminderDow: user.reminderDow ?? 0,
       reminderHour: user.reminderHour ?? 10,
     };
@@ -73,6 +74,24 @@ export const removeSubscription = mutation({
   },
 });
 
+/**
+ * Turn reminders off for the whole account. Used by the "Off" tab: the browser
+ * may have no local subscription to report an endpoint for (getSubscription →
+ * null), so removing by-endpoint isn't reliable; this clears every row so
+ * `getStatus.subscribed` deterministically flips to false.
+ */
+export const removeAllSubscriptions = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await me(ctx);
+    const subs = await ctx.db
+      .query("pushSubscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const s of subs) await ctx.db.delete(s._id);
+  },
+});
+
 export const setReminderSchedule = mutation({
   args: { reminderDow: v.number(), reminderHour: v.number() },
   handler: async (ctx, args) => {
@@ -81,6 +100,14 @@ export const setReminderSchedule = mutation({
       reminderDow: Math.max(0, Math.min(6, Math.round(args.reminderDow))),
       reminderHour: Math.max(0, Math.min(23, Math.round(args.reminderHour))),
     });
+  },
+});
+
+export const setReminderFreq = mutation({
+  args: { freq: v.union(v.literal("daily"), v.literal("weekly")) },
+  handler: async (ctx, { freq }) => {
+    const user = await me(ctx);
+    await ctx.db.patch(user._id, { reminderFreq: freq });
   },
 });
 
@@ -101,23 +128,41 @@ export const dueRecipients = internalQuery({
     const subs = await ctx.db.query("pushSubscriptions").take(2000);
     const out: Array<{
       endpoint: string; p256dh: string; auth: string;
-      userId: Id<"users">; weekKey: string; remaining: number;
+      userId: Id<"users">;
+      mode: "daily" | "weekly";
+      dayKey: string; weekKey: string; remaining: number;
     }> = [];
     for (const sub of subs) {
       const user = await ctx.db.get(sub.userId);
       if (!user || !user.onboarded) continue;
       const tz = user.timezone || "UTC";
       const { dow, hour } = localDowHour(now, tz);
-      if (hour !== (user.reminderHour ?? 10)) continue;
-      if (dow !== (user.reminderDow ?? 0)) continue;
-      const weekKey = isoWeekKey(localDayKey(now, tz, user.dayRolloverHour));
-      if (user.lastRemindedWeekKey === weekKey) continue;
-      const weekCount = user.currentWeekKey === weekKey ? user.repsThisWeek : 0;
-      if (weekCount >= user.weeklyGoal) continue; // already hit goal — no nag
-      out.push({
-        endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth,
-        userId: sub.userId, weekKey, remaining: user.weeklyGoal - weekCount,
-      });
+      if (hour !== (user.reminderHour ?? 10)) continue; // wrong local hour
+      const dayKey = localDayKey(now, tz, user.dayRolloverHour);
+      const weekKey = isoWeekKey(dayKey);
+      const freq = user.reminderFreq ?? "daily";
+      if (freq === "weekly") {
+        if (dow !== (user.reminderDow ?? 0)) continue; // wrong local day
+        if (user.lastRemindedWeekKey === weekKey) continue; // already nudged this week
+        const weekCount =
+          user.currentWeekKey === weekKey ? user.repsThisWeek : 0;
+        if (weekCount >= user.weeklyGoal) continue; // already hit goal — no nag
+        out.push({
+          endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth,
+          userId: sub.userId, mode: "weekly", dayKey, weekKey,
+          remaining: user.weeklyGoal - weekCount,
+        });
+      } else {
+        // daily
+        if (user.lastRemindedDayKey === dayKey) continue; // already nudged today
+        const todayCount =
+          user.currentDayKey === dayKey ? user.repsToday : 0;
+        if (todayCount >= 1) continue; // already showed up today — no nag
+        out.push({
+          endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth,
+          userId: sub.userId, mode: "daily", dayKey, weekKey, remaining: 0,
+        });
+      }
     }
     return out;
   },
@@ -133,9 +178,19 @@ export const allSubscriptions = internalQuery({
 });
 
 export const markReminded = internalMutation({
-  args: { userId: v.id("users"), weekKey: v.string() },
-  handler: async (ctx, { userId, weekKey }) => {
-    await ctx.db.patch(userId, { lastRemindedWeekKey: weekKey });
+  args: {
+    userId: v.id("users"),
+    mode: v.union(v.literal("daily"), v.literal("weekly")),
+    dayKey: v.string(),
+    weekKey: v.string(),
+  },
+  handler: async (ctx, { userId, mode, dayKey, weekKey }) => {
+    await ctx.db.patch(
+      userId,
+      mode === "daily"
+        ? { lastRemindedDayKey: dayKey }
+        : { lastRemindedWeekKey: weekKey },
+    );
   },
 });
 

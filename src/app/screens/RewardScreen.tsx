@@ -248,20 +248,34 @@ export function RewardScreen() {
                     lineHeight: 1.3,
                   }}
                 >
-                  Rep logged. Showing up is the whole win.
+                  {reward.isFirstEver
+                    ? "That was the hardest one. You're on the board."
+                    : "Rep logged. Showing up is the whole win."}
                 </div>
                 <div
                   style={{ marginTop: 10, fontSize: 13, color: "var(--ash)" }}
                 >
-                  Approach{" "}
-                  <span style={{ fontFamily: MONO, color: "var(--bone)" }}>
-                    #{displayReps}
-                  </span>{" "}
-                  ·{" "}
-                  <span style={{ fontFamily: MONO, color: "var(--bone)" }}>
-                    {reward.streak}
-                  </span>
-                  -week streak
+                  {reward.isFirstEver ? (
+                    <>
+                      Approach{" "}
+                      <span style={{ fontFamily: MONO, color: "var(--bone)" }}>
+                        #1
+                      </span>{" "}
+                      · your line starts here.
+                    </>
+                  ) : (
+                    <>
+                      Approach{" "}
+                      <span style={{ fontFamily: MONO, color: "var(--bone)" }}>
+                        #{displayReps}
+                      </span>{" "}
+                      ·{" "}
+                      <span style={{ fontFamily: MONO, color: "var(--bone)" }}>
+                        {reward.streak}
+                      </span>
+                      -week streak
+                    </>
+                  )}
                 </div>
               </div>
 

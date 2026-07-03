@@ -3,7 +3,9 @@ import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
 export function HypeScreen() {
-  const { nav, hypeStep, hypeWhy, hypeGo, hypeCount, startLog } = useApp();
+  const { nav, hypeStep, hypeWhy, hypeBarrier, hypeGo, hypeCount, startLog } =
+    useApp();
+  const barrier = hypeBarrier();
   return (
           <div
             style={{
@@ -102,6 +104,58 @@ export function HypeScreen() {
                       </div>
                     </div>
                   </div>
+                  {barrier && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 13,
+                        alignItems: "center",
+                        background: "var(--charcoal)",
+                        border: "1px solid var(--slate)",
+                        borderRadius: 16,
+                        padding: 16,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 11,
+                          background: "rgba(52,209,126,.14)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          color: "var(--go)",
+                          fontSize: 18,
+                        }}
+                      >
+                        ◎
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--ash)",
+                            marginBottom: 2,
+                          }}
+                        >
+                          {barrier.label}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            color: "var(--bone)",
+                            fontWeight: 600,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {barrier.line}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div
                     style={{
                       display: "flex",

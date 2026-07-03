@@ -108,8 +108,25 @@ export function useAppState({
   const pushStatus = useQuery(api.push.getStatus, isSignedIn ? {} : "skip");
   const saveSubMut = useMutation(api.push.saveSubscription);
   const removeSubMut = useMutation(api.push.removeSubscription);
+  const removeAllSubMut = useMutation(api.push.removeAllSubscriptions);
+  const setReminderFreqMut = useMutation(api.push.setReminderFreq);
+  const submitFeedbackMut = useMutation(api.feedback.submit);
   const [pushBusy, setPushBusy] = useState(false);
   const [goalEditing, setGoalEditing] = useState(false);
+  // iOS delivers web-push only to a home-screen-installed PWA, not a Safari tab.
+  // Detect so the reminder UI can tell iPhone users to install first.
+  const [isIOS] = useState(() =>
+    typeof navigator !== "undefined"
+      ? /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))
+      : false,
+  );
+  const [isStandalone] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia?.("(display-mode: standalone)").matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true
+      : false,
+  );
   const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const onboarded = !!me?.onboarded;
   const booting = !isLoaded || (isSignedIn && me === undefined);
@@ -259,6 +276,35 @@ export function useAppState({
     const key = me?.reason || quiz.motivation[0];
     return key ? map[key] || "the life you want" : "the life you want";
   };
+  // The warm-up, aimed at the barrier they flagged in onboarding (mainBarrier):
+  // acknowledges their specific blocker, then reframes it. Delivers on the
+  // onboarding promise ("this is the thing the reps dissolve").
+  const hypeBarrier = (): { label: string; line: string } | null => {
+    const map: Record<string, { label: string; line: string }> = {
+      rejection: {
+        label: "Fear of rejection",
+        line: "A 'no' is just data — it costs you nothing. You win the second you walk over.",
+      },
+      words: {
+        label: "Not knowing what to say",
+        line: "You don't need a line. 'Hey, I had to come say hi' is plenty.",
+      },
+      creepy: {
+        label: "Seeming creepy or awkward",
+        line: "Warm, brief, and you leave the moment they're not into it. That's respect.",
+      },
+      freeze: {
+        label: "Freezing and overthinking",
+        line: "Don't wait to feel ready — 3-2-1, feet first. The freeze breaks the instant you move.",
+      },
+      timing: {
+        label: "Waiting for the perfect moment",
+        line: "There's no perfect moment. This one is it. Go before you think.",
+      },
+    };
+    const key = me?.mainBarrier || quiz.barrier;
+    return key ? (map[key] ?? null) : null;
+  };
 
   // log
   const startLog = () => {
@@ -281,6 +327,7 @@ export function useAppState({
     rankUp: boolean,
     newRank: string,
     milestone: { label: string; color: string } | null,
+    isFirstEver: boolean,
   ) {
     return {
       approachId,
@@ -293,8 +340,10 @@ export function useAppState({
       rankUp,
       newRank,
       milestone,
-      eyebrow:
-        repsToday === 1
+      isFirstEver,
+      eyebrow: isFirstEver
+        ? "Your first approach. Ever."
+        : repsToday === 1
           ? "You broke the ice today"
           : "Rep " + repsToday + " today",
       confetti: makeConfetti(mode.color, confetti),
@@ -341,12 +390,15 @@ export function useAppState({
     if (res.newTotal === 1) trackCustom("FirstRep", { xp: res.xpAwarded });
     const mode = MODES[res.modeTier - 1];
     const newTotal = prevTotal + 1;
+    const isFirstEver = res.newTotal === 1;
     const countMs = [10, 25, 50, 100, 250, 500];
-    const milestone = res.isNewPeak
-      ? { label: `New peak · ${mode.emoji} ${mode.name}`, color: mode.color }
-      : countMs.includes(res.newTotal)
-        ? { label: `${res.newTotal} approaches banked`, color: "#FFB23E" }
-        : null;
+    const milestone = isFirstEver
+      ? { label: "Day one · you beat the freeze", color: "var(--go)" }
+      : res.isNewPeak
+        ? { label: `New peak · ${mode.emoji} ${mode.name}`, color: mode.color }
+        : countMs.includes(res.newTotal)
+          ? { label: `${res.newTotal} approaches banked`, color: "#FFB23E" }
+          : null;
     setReward(
       buildReward(
         res.approachId,
@@ -359,6 +411,7 @@ export function useAppState({
         res.rankUp,
         res.newRank,
         milestone,
+        isFirstEver,
       ),
     );
     setDisplayXp(0);
@@ -427,25 +480,56 @@ export function useAppState({
 
   // weekly reminder push
   const pushOn = !!pushStatus?.subscribed;
+  const reminderFreq: "daily" | "weekly" = pushStatus?.reminderFreq ?? "daily";
+  const reminderMode: "off" | "daily" | "weekly" = pushOn
+    ? reminderFreq
+    : "off";
+  // iPhone + not-yet-installed → reminders can't be enabled until the PWA is on
+  // the home screen; the profile shows an install hint when true.
+  const needsIosInstall = isIOS && !isStandalone;
   const DOW_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const remHour = pushStatus?.reminderHour ?? 10;
-  const scheduleLabel = `${DOW_NAMES[pushStatus?.reminderDow ?? 0]} · ${remHour % 12 || 12}:00 ${remHour < 12 ? "AM" : "PM"}`;
-  const toggleReminders = async () => {
-    if (pushBusy) return;
+  const remTime = `${remHour % 12 || 12}:00 ${remHour < 12 ? "AM" : "PM"}`;
+  const scheduleLabel =
+    reminderMode === "off"
+      ? "Off"
+      : reminderMode === "daily"
+        ? `Daily · ${remTime}`
+        : `${DOW_NAMES[pushStatus?.reminderDow ?? 0]} · ${remTime}`;
+  // Daily / Weekly / Off. "off" unsubscribes the device; daily/weekly subscribe
+  // (if needed) then set the cadence.
+  const setReminderMode = async (mode: "off" | "daily" | "weekly") => {
+    if (pushBusy || mode === reminderMode) return;
     setPushBusy(true);
     try {
-      if (!pushOn) {
-        if (!VAPID) {
-          showToast("Push isn't configured.");
-          return;
-        }
-        const sub = await subscribeThisDevice(VAPID);
-        await saveSubMut(sub);
-        showToast("Weekly reminders on.");
-      } else {
+      if (mode === "off") {
+        // Best-effort browser unsubscribe, then clear ALL server subs for the
+        // account. The browser may have no local subscription to report (returns
+        // null), which would otherwise leave the server row — and the tab stuck.
         const endpoint = await unsubscribeThisDevice();
         if (endpoint) await removeSubMut({ endpoint });
-        showToast("Weekly reminders off.");
+        await removeAllSubMut();
+        showToast("Reminders off.");
+      } else {
+        if (!pushOn) {
+          if (needsIosInstall) {
+            // Can't subscribe in a Safari tab on iOS — guide them to install.
+            showToast(
+              "On iPhone: tap Share → Add to Home Screen, then open Couragely from your home screen to turn on reminders.",
+            );
+            return;
+          }
+          if (!VAPID) {
+            showToast("Push isn't configured.");
+            return;
+          }
+          const sub = await subscribeThisDevice(VAPID);
+          await saveSubMut(sub);
+        }
+        await setReminderFreqMut({ freq: mode });
+        showToast(
+          mode === "daily" ? "Daily reminders on." : "Weekly reminders on.",
+        );
       }
     } catch (e) {
       const msg = (e as Error)?.message;
@@ -647,6 +731,7 @@ export function useAppState({
     startHype,
     hypeGo,
     hypeWhy,
+    hypeBarrier,
     startLog,
     setAnx,
     buildReward,
@@ -661,7 +746,10 @@ export function useAppState({
     DOW_NAMES,
     remHour,
     scheduleLabel,
-    toggleReminders,
+    reminderMode,
+    setReminderMode,
+    needsIosInstall,
+    submitFeedbackMut,
     level,
     base,
     into,

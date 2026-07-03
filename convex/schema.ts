@@ -42,9 +42,11 @@ export default defineSchema({
     streakLongest: v.number(),
     lastGoalWeekKey: v.optional(v.string()), // most recent week the goal was hit
 
-    // weekly reminder push (PRD §8)
-    reminderDow: v.optional(v.number()), // 0=Sun … 6=Sat (default 0)
-    lastRemindedWeekKey: v.optional(v.string()), // dedupe: one nudge per week
+    // reminder push (PRD §8) — daily by default, or weekly
+    reminderFreq: v.optional(v.union(v.literal("daily"), v.literal("weekly"))), // default "daily"
+    reminderDow: v.optional(v.number()), // 0=Sun … 6=Sat — only used in weekly mode (default 0)
+    lastRemindedWeekKey: v.optional(v.string()), // dedupe: one nudge per week (weekly mode)
+    lastRemindedDayKey: v.optional(v.string()), // dedupe: one nudge per day (daily mode)
 
     lastRepAt: v.optional(v.number()),
   }).index("by_token", ["tokenId"]),
@@ -74,4 +76,13 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_week", ["userId", "weekKey"]),
+
+  // In-app feedback / feature requests (submitted from the profile screen).
+  feedback: defineTable({
+    userId: v.optional(v.id("users")),
+    kind: v.union(v.literal("idea"), v.literal("bug"), v.literal("other")),
+    message: v.string(),
+    email: v.optional(v.string()), // from the auth identity, for follow-up
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
 });

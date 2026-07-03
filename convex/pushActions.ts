@@ -6,18 +6,35 @@ import type { Id } from "./_generated/dataModel";
 import webpush from "web-push";
 
 /**
- * Sends the weekly reminder to everyone due right now. Invoked hourly by the
- * cron; `dueRecipients` handles the per-user local-time + goal + dedupe logic,
- * so this action just delivers and records/cleans up.
+ * Sends daily/weekly reminders to everyone due right now. Invoked hourly by the
+ * cron; `dueRecipients` handles the per-user local-time + freq + skip-if-done +
+ * dedupe logic, so this action just delivers and records/cleans up.
  */
 type Recipient = {
   endpoint: string;
   p256dh: string;
   auth: string;
   userId: Id<"users">;
+  mode: "daily" | "weekly";
+  dayKey: string;
   weekKey: string;
   remaining: number;
 };
+
+// Encouraging daily lines — validate the act, never shame a miss. Rotated by
+// day so the notification doesn't go stale.
+const DAILY_LINES = [
+  "One rep today — that's the whole game.",
+  "Beat the freeze once today. Showing up is the win.",
+  "One approach today. Win or lose, it counts.",
+  "Today's rep is right there. Go say hi.",
+  "The freeze only wins if you skip it. Not today.",
+];
+function dailyLine(key: string) {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return DAILY_LINES[Math.abs(h) % DAILY_LINES.length];
+}
 
 export const sendDueReminders = internalAction({
   args: {},
@@ -33,23 +50,29 @@ export const sendDueReminders = internalAction({
 
     const now = Date.now();
     const due: Recipient[] = await ctx.runQuery(internal.push.dueRecipients, { now });
-    const reminded = new Map<Id<"users">, string>(); // userId -> weekKey
+    const reminded = new Map<
+      Id<"users">,
+      { mode: "daily" | "weekly"; dayKey: string; weekKey: string }
+    >();
 
     for (const r of due) {
-      const payload = JSON.stringify({
-        title: "Couragely",
-        body:
-          r.remaining <= 1
+      const body =
+        r.mode === "weekly"
+          ? r.remaining <= 1
             ? "One approach to hit this week's goal. Beat the freeze."
-            : `${r.remaining} approaches from this week's goal. One rep at a time.`,
-        url: "/",
-      });
+            : `${r.remaining} approaches from this week's goal. One rep at a time.`
+          : dailyLine(r.dayKey);
+      const payload = JSON.stringify({ title: "Couragely", body, url: "/" });
       try {
         await webpush.sendNotification(
           { endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } },
           payload
         );
-        reminded.set(r.userId, r.weekKey);
+        reminded.set(r.userId, {
+          mode: r.mode,
+          dayKey: r.dayKey,
+          weekKey: r.weekKey,
+        });
       } catch (e) {
         const code = (e as { statusCode?: number })?.statusCode;
         if (code === 404 || code === 410) {
@@ -60,8 +83,13 @@ export const sendDueReminders = internalAction({
       }
     }
 
-    for (const [userId, weekKey] of reminded) {
-      await ctx.runMutation(internal.push.markReminded, { userId, weekKey });
+    for (const [userId, k] of reminded) {
+      await ctx.runMutation(internal.push.markReminded, {
+        userId,
+        mode: k.mode,
+        dayKey: k.dayKey,
+        weekKey: k.weekKey,
+      });
     }
     return { attempted: due.length, sent: reminded.size };
   },
