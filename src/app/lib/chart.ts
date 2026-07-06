@@ -110,6 +110,16 @@ export function buildChart(
 
   const delta = trend[0] - trend[trend.length - 1]; // positive = improvement (lower fear is better)
   const hasDelta = trend.length >= 2;
+  const netDrop = delta > 0.05; // still net-down from day-one baseline
+
+  // A "rising week": the most recent point ticks meaningfully higher than the
+  // point ~4 steps back. Real anxiety data isn't monotonic; a hard stretch makes
+  // the line go up. We surface that as a calm wobble (amber dot + reassurance),
+  // NEVER an alarm — the line itself still visibly rises and keeps its color.
+  const n = trend.length;
+  const backIdx = Math.max(0, n - 5); // ~4 steps back, clamped
+  const risingWeek = n >= 4 && trend[n - 1] - trend[backIdx] > 0.25;
+  const chartDotColor = risingWeek ? "var(--amber)" : "var(--go)";
   let chartArrow: string,
     chartDelta: string,
     chartTrendColor: string,
@@ -138,19 +148,25 @@ export function buildChart(
     chartH: H,
     chartDotX: last[0].toFixed(1),
     chartDotY: last[1].toFixed(1),
+    chartDotColor,
     chartCurrent: trend[trend.length - 1].toFixed(1),
     chartArrow,
     chartDelta,
     chartTrendColor,
     chartTrendTint,
-    // Teaching caption that fades once taught: while there's no real line yet,
-    // prompt for a rep; in the first week (< CHART_CAPTION_TAUGHT_AT approaches)
-    // teach the counterintuitive "down = good" AND reassure it's real data; once
-    // established, trim to just the essential cue.
-    // chartSubcaption: !hasDelta
-    //   ? "Baseline set. Log a rep to start drawing your line."
-    //   : totalApproaches < CHART_CAPTION_TAUGHT_AT
-    //     ? "Down is the win. Your real line — not a promise."
-    //     : "Down is the win.",
+    risingWeek,
+    // Rising-week support copy — calm reassurance, never an error banner. A small
+    // amber-tinted note plus a reframed caption. Honest: if still net-down from
+    // baseline we name the drop; if the recent rise has pushed above the starting
+    // point we don't claim a net drop. Null/undefined on the normal (falling/flat)
+    // path so that case behaves exactly as before.
+    chartNote: risingWeek
+      ? "This week ticked up — that's normal. Reps through the hard weeks are the ones that move the line."
+      : null,
+    chartSubcaption: risingWeek
+      ? netDrop
+        ? `Rough week — the line wobbles, the trend holds. Still down ${delta.toFixed(1)} from day one.`
+        : "Lines rise before they fall again. Showing up this week is the whole point."
+      : undefined,
   };
 }

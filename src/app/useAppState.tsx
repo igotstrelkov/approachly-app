@@ -579,11 +579,15 @@ export function useAppState({
   const fearLabel =
     trend.length < 2
       ? "Your starting line"
-      : trend[0] - trend[trend.length - 1] > 0.05
-        ? "Your fear, falling"
-        : trend[0] - trend[trend.length - 1] < -0.05
-          ? "Your fear, lately"
-          : "Your fear, so far";
+      : chart.risingWeek
+        ? // Rising week: keep the label neutral so it never contradicts a line
+          // that just ticked up (that mismatch is what reads as a bug).
+          "Your fear, over time"
+        : trend[0] - trend[trend.length - 1] > 0.05
+          ? "Your fear, falling"
+          : trend[0] - trend[trend.length - 1] < -0.05
+            ? "Your fear, lately"
+            : "Your fear, so far";
   const isFresh = user.totalApproaches === 0;
   const baselineAnx = trend.length ? Number(trend[0]).toFixed(1) : "—";
   const hasRepsToday = user.repsToday >= 1;

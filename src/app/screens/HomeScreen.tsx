@@ -355,14 +355,14 @@ export function HomeScreen() {
                 cx={chart.chartDotX}
                 cy={chart.chartDotY}
                 r="6"
-                fill="var(--go)"
+                fill={chart.chartDotColor}
               />
               <circle
                 cx={chart.chartDotX}
                 cy={chart.chartDotY}
                 r="6"
                 fill="none"
-                stroke="var(--go)"
+                stroke={chart.chartDotColor}
                 strokeWidth="2"
                 opacity="0.5"
                 style={{
@@ -372,15 +372,35 @@ export function HomeScreen() {
               />
             </g>
           </svg>
-          {/* <div
-            style={{
-              fontSize: 12,
-              color: "var(--ash)",
-              fontStyle: "italic",
-            }}
-          >
-            {chart.chartSubcaption}
-          </div> */}
+
+          {/* Rising-week reassurance — only when the recent trend ticks up. Calm,
+              never an alarm: an amber-tinted note + a reframed caption. */}
+          {chart.risingWeek && (
+            <>
+              <div
+                style={{
+                  background: "rgba(224,160,48,.12)",
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  fontSize: 12.5,
+                  lineHeight: 1.4,
+                  color: "var(--amber)",
+                }}
+              >
+                {chart.chartNote}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--ash)",
+                  fontStyle: "italic",
+                  marginTop: 8,
+                }}
+              >
+                {chart.chartSubcaption}
+              </div>
+            </>
+          )}
 
           {hasRepsToday && (
             // Quiet today-status strip: reads as status, not an action, so it
