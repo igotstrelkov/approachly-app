@@ -17,8 +17,6 @@ export function HomeScreen() {
     startHype,
     startLog,
     levelPct,
-    nextRankHint,
-    xpToNext,
   } = useApp();
   return (
     <div
@@ -34,9 +32,67 @@ export function HomeScreen() {
           marginBottom: 34,
         }}
       >
-        <div style={{ ...eyebrow("var(--ember)"), letterSpacing: 2 }}>
-          Lvl {level} · {rank}
-        </div>
+        <button
+          onClick={() => nav("ranks")}
+          style={{
+            background: "var(--charcoal)",
+            border: "1px solid var(--slate)",
+            borderRadius: 999,
+            padding: "8px 14px",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            textAlign: "left",
+            transition: "border-color 0.15s ease, background-color 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--slateHi)";
+            e.currentTarget.style.backgroundColor = "var(--charcoal2)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--slate)";
+            e.currentTarget.style.backgroundColor = "var(--charcoal)";
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div
+              style={{
+                ...eyebrow("var(--ember)"),
+              }}
+            >
+              Lvl {level} · {rank}
+            </div>
+            {/* <div
+              style={{
+                width: 70,
+                height: 3,
+                borderRadius: 999,
+                background: "var(--slate)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${levelPct}%`,
+                  background: "linear-gradient(90deg, var(--ember), #FFCF7A)",
+                  borderRadius: 999,
+                }}
+              />
+            </div> */}
+          </div>
+          <span
+            style={{
+              color: "var(--ash)",
+
+              lineHeight: 1,
+              transform: "translateY(-0.5px)",
+            }}
+          >
+            ›
+          </span>
+        </button>
         <button
           onClick={() => nav("you")}
           style={{
@@ -699,96 +755,6 @@ export function HomeScreen() {
                 </span>
               </div>
             ))}
-            {/* GROUP 3 — YOUR JOURNEY (anchors the bottom) */}
-            <div
-              style={{
-                ...eyebrow("var(--ash)"),
-                letterSpacing: 2,
-                marginTop: 24,
-                marginBottom: 10,
-              }}
-            >
-              Your journey
-            </div>
-            {/* Journey card — ambient hook into the Ranks view (not the hero) */}
-            <button
-              onClick={() => nav("ranks")}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                cursor: "pointer",
-                display: "block",
-                background: "var(--charcoal)",
-                border: "1px solid var(--slate)",
-                borderRadius: 16,
-                padding: 16,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                <div
-                  style={{
-                    width: 46,
-                    height: 46,
-                    flexShrink: 0,
-                    borderRadius: 13,
-                    background:
-                      "linear-gradient(135deg,var(--ember),var(--flare))",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: DISPLAY,
-                    fontSize: 22,
-                    color: "#1a0f08",
-                  }}
-                >
-                  {level}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, color: "var(--bone)" }}>
-                    <span style={{ fontWeight: 700 }}>{rank}</span>{" "}
-                    <span style={{ color: "var(--ash)" }}>· Level {level}</span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--ash)",
-                      marginTop: 2,
-                    }}
-                  >
-                    {nextRankHint}
-                  </div>
-                </div>
-                <span style={{ color: "var(--ash)", fontSize: 20 }}>›</span>
-              </div>
-              <div
-                style={{
-                  height: 6,
-                  borderRadius: 999,
-                  background: "var(--slate)",
-                  overflow: "hidden",
-                  marginTop: 14,
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${levelPct}%`,
-                    background: "linear-gradient(90deg,var(--ember),#FFCF7A)",
-                    borderRadius: 999,
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 11.5,
-                  color: "var(--ash)",
-                  marginTop: 8,
-                }}
-              >
-                {xpToNext} XP to Level {level + 1} · View journey ›
-              </div>
-            </button>
           </div>
         </div>
       )}
