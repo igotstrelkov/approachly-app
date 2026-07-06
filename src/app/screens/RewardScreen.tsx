@@ -31,6 +31,9 @@ export function RewardScreen() {
   } = useApp();
   const { width, height } = useWindowSize();
   if (!reward) return null;
+  // Rough one → the calmer "acknowledgment" accent (amber). Same mechanics/XP,
+  // quieter tone: no confetti, no celebratory pills, supportive copy.
+  const heroColor = reward.rough ? "#e0a030" : reward.mode.color;
   return (
           <div
             style={{
@@ -43,7 +46,7 @@ export function RewardScreen() {
               padding: "calc(env(safe-area-inset-top, 0px) + 20px) 24px 32px",
             }}
           >
-            {reward.confetti && (
+            {reward.confetti && !reward.rough && (
               <Confetti
                 width={width}
                 height={height}
@@ -92,7 +95,7 @@ export function RewardScreen() {
                     position: "absolute",
                     inset: -24,
                     borderRadius: "50%",
-                    background: `radial-gradient(circle,${hexA(reward.mode.color, 0.5)} 0%,transparent 70%)`,
+                    background: `radial-gradient(circle,${hexA(heroColor, reward.rough ? 0.32 : 0.5)} 0%,transparent 70%)`,
                     animation: "aGlow 2.4s ease-in-out infinite",
                   }}
                 />
@@ -107,10 +110,10 @@ export function RewardScreen() {
                     justifyContent: "center",
                     fontSize: 50,
                     background: "var(--charcoal)",
-                    border: `1.5px solid ${reward.mode.color}`,
+                    border: `1.5px solid ${heroColor}`,
                   }}
                 >
-                  {reward.mode.emoji}
+                  {reward.rough ? "🫡" : reward.mode.emoji}
                 </div>
               </div>
               <div
@@ -123,18 +126,19 @@ export function RewardScreen() {
                   marginBottom: 2,
                 }}
               >
-                {reward.eyebrow}
+                {reward.rough ? "Rough one" : reward.eyebrow}
               </div>
               <div
                 style={{
                   fontFamily: DISPLAY,
                   fontSize: 28,
                   textTransform: "uppercase",
-                  color: reward.mode.color,
+                  color: heroColor,
+                  textAlign: "center",
                   animation: "aFadeUp .5s .1s both",
                 }}
               >
-                {reward.mode.name}
+                {reward.rough ? "You did it anyway." : reward.mode.name}
               </div>
               <div
                 style={{
@@ -147,7 +151,9 @@ export function RewardScreen() {
                   animation: "aFadeUp .5s .16s both",
                 }}
               >
-                {reward.mode.blurb}
+                {reward.rough
+                  ? "Reps like this are the ones that move the line."
+                  : reward.mode.blurb}
               </div>
 
               <div
@@ -180,7 +186,7 @@ export function RewardScreen() {
                 </div>
               </div>
 
-              {reward.leveledUp && (
+              {!reward.rough && reward.leveledUp && (
                 <div
                   style={{
                     marginTop: 18,
@@ -204,7 +210,7 @@ export function RewardScreen() {
                   </span>
                 </div>
               )}
-              {reward.rankUp && (
+              {!reward.rough && reward.rankUp && (
                 <div
                   style={{
                     marginTop: 10,
@@ -235,7 +241,7 @@ export function RewardScreen() {
                   </div>
                 </div>
               )}
-              {reward.milestone && (
+              {!reward.rough && reward.milestone && (
                 <div
                   style={{
                     marginTop: 16,

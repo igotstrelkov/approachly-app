@@ -331,6 +331,9 @@ export function useAppState({
     newRank: string,
     milestone: { label: string; color: string } | null,
     isFirstEver: boolean,
+    // A "rough one": went poorly ("Still a rep") and/or high nerves. The reward
+    // stays fully credited (same XP) but the TONE softens — see RewardScreen.
+    rough: boolean,
   ) {
     return {
       approachId,
@@ -344,6 +347,7 @@ export function useAppState({
       newRank,
       milestone,
       isFirstEver,
+      rough,
       eyebrow: isFirstEver
         ? "Your first approach. Ever."
         : repsToday === 1
@@ -370,6 +374,9 @@ export function useAppState({
   const logIt = async () => {
     if (!draft.vibe) return;
     haptic(20);
+    // A rough one: it went poorly, or the nerves right before were high (≥8).
+    // Still fully credited — only the Reward screen's tone softens.
+    const rough = draft.vibe === "STILL_A_REP" || draft.anxiety >= 8;
     const prevTotal = user.totalApproaches;
     let res: Awaited<ReturnType<typeof logRepMut>>;
     try {
@@ -416,6 +423,7 @@ export function useAppState({
         res.newRank,
         milestone,
         isFirstEver,
+        rough,
       ),
     );
     setDisplayXp(0);
