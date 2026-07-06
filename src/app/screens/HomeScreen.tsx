@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
@@ -13,11 +14,35 @@ export function HomeScreen() {
     chart,
     hasRepsToday,
     todayMode,
+    modeUnlocked,
     user,
     startHype,
     startLog,
     levelPct,
+    justLogged,
+    setJustLogged,
   } = useApp();
+
+  // Transient post-log confirmation: plays once when returning to Home right
+  // after logging (armed by finishReward), then fades within ~2s leaving nothing
+  // behind. HomeScreen remounts on each navigation, so capturing justLogged at
+  // first render is exactly the "just logged" transition — and it's consumed on
+  // mount so it never replays on later Home visits or reloads.
+  const [reduceMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [confirm, setConfirm] = useState(() => justLogged);
+  const [pulse, setPulse] = useState(() => justLogged && !reduceMotion);
+  useEffect(() => {
+    if (!justLogged) return;
+    Promise.resolve().then(() => setJustLogged(false)); // consume, one-shot
+    const timers = [setTimeout(() => setConfirm(false), 2000)];
+    if (!reduceMotion) timers.push(setTimeout(() => setPulse(false), 500));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div
       style={{
@@ -404,9 +429,11 @@ export function HomeScreen() {
 
           {hasRepsToday && (
             // Quiet today-status strip: reads as status, not an action, so it
-            // doesn't compete with the CTA cards below. Affirms the act (never
-            // a raw count at 1 — "showing up is the win"); a count only shows
-            // from 2+, where it reads as momentum. Non-interactive by design.
+            // doesn't compete with the CTA cards below. No rep counter (a raw
+            // count reads as a scoreboard) — just a calm "done for today" cue.
+            // The Daily Mode badge is gated on tenure (modeUnlocked = 3+ active
+            // days) so a brand-new user's Home never meets "Final Boss" energy;
+            // the mode reveal still happens in the Reward screen from day one.
             <div
               style={{
                 display: "flex",
@@ -417,27 +444,28 @@ export function HomeScreen() {
                 fontSize: 12.5,
               }}
             >
-              <span style={{ fontSize: 15, lineHeight: 1 }}>
-                {todayMode.emoji}
-              </span>
-              <span
-                style={{
-                  letterSpacing: 1.5,
-                  color: "var(--ash)",
-                  textTransform: "uppercase",
-                }}
-              >
-                Today
-              </span>
-              <span style={{ fontWeight: 700, color: todayMode.color }}>
-                {todayMode.name}
-              </span>
-              <span style={{ color: "var(--ash)" }}>·</span>
+              {modeUnlocked && (
+                <>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>
+                    {todayMode.emoji}
+                  </span>
+                  <span
+                    style={{
+                      letterSpacing: 1.5,
+                      color: "var(--ash)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Today
+                  </span>
+                  <span style={{ fontWeight: 700, color: todayMode.color }}>
+                    {todayMode.name}
+                  </span>
+                  <span style={{ color: "var(--ash)" }}>·</span>
+                </>
+              )}
               <span style={{ color: "var(--ash)" }}>
-                {user.repsToday === 1
-                  ? "you showed up"
-                  : `${user.repsToday} reps banked`}{" "}
-                <span style={{ color: "var(--ash)" }}>✓</span>
+                Logged today <span style={{ color: "var(--go)" }}>✓</span>
               </span>
             </div>
           )}
@@ -453,19 +481,49 @@ export function HomeScreen() {
           marginTop: 32,
         }}
       >
-        <button
-          onClick={startLog}
-          style={{
-            width: "100%",
-            cursor: "pointer",
-            border: "none",
-            background: GO_GRAD,
-            color: "#07130C",
-            borderRadius: 22,
-            padding: "24px 20px",
-            boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)",
-          }}
-        >
+        <div style={{ position: "relative" }}>
+          {confirm && (
+            <div
+              style={{
+                position: "absolute",
+                top: -13,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 3,
+                pointerEvents: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                background: "var(--charcoal)",
+                border: "1px solid var(--go)",
+                borderRadius: 999,
+                padding: "5px 12px",
+                fontFamily: MONO,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                color: "var(--go)",
+                whiteSpace: "nowrap",
+                animation: "aConfirmFade 2s ease forwards",
+              }}
+            >
+              ✓ Logged
+            </div>
+          )}
+          <button
+            onClick={startLog}
+            style={{
+              width: "100%",
+              cursor: "pointer",
+              border: "none",
+              background: GO_GRAD,
+              color: "#07130C",
+              borderRadius: 22,
+              padding: "24px 20px",
+              boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)",
+              animation: pulse ? "aConfirmPulse .5s ease" : undefined,
+            }}
+          >
           <div
             style={{
               fontFamily: DISPLAY,
@@ -488,7 +546,8 @@ export function HomeScreen() {
               ? "You walked over. This is the one."
               : "You walked over. Bank it."}
           </div>
-        </button>
+          </button>
+        </div>
         <button
           onClick={startHype}
           style={{

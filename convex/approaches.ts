@@ -94,6 +94,8 @@ export const logRep = mutation({
       greatSets: user.greatSets + (args.vibe === "GREAT_SET" ? 1 : 0),
       gotNumbers: user.gotNumbers + (args.gotNumber ? 1 : 0),
       peakModeN,
+      // Distinct active days: bump only on the first rep of a new day.
+      activeDays: (user.activeDays ?? 0) + (firstOfDay ? 1 : 0),
       repsToday,
       currentDayKey: dayKey,
       repsThisWeek,
