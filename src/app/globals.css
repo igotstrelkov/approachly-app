@@ -76,11 +76,6 @@ textarea:focus {
 }
 
 /* ---- animations (from the design bundle) ---- */
-@keyframes aConfetti {
-  0% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(820px) rotate(400deg); }
-}
 @keyframes aPop {
   0% { opacity: 0; transform: scale(0.5); }
   60% { transform: scale(1.12); }
