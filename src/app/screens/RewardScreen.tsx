@@ -27,7 +27,7 @@ export function RewardScreen() {
     setNumberSaved,
     markNumberMut,
     showToast,
-    finishReward,
+    nav,
   } = useApp();
   const { width, height } = useWindowSize();
   if (!reward) return null;
@@ -354,7 +354,7 @@ export function RewardScreen() {
 
               <div style={{ width: "100%", animation: "aFadeUp .5s .5s both" }}>
                 <button
-                  onClick={finishReward}
+                  onClick={() => nav("home")}
                   style={{
                     width: "100%",
                     border: "none",

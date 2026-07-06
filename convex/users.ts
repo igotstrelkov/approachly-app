@@ -71,7 +71,6 @@ export const completeOnboarding = mutation({
       repsThisWeek: 0,
       streakWeeks: 0,
       streakLongest: 0,
-      activeDays: 0,
       ...plan,
     });
   },

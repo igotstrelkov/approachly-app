@@ -76,19 +76,6 @@ textarea:focus {
 }
 
 /* ---- animations (from the design bundle) ---- */
-/* Transient post-log "✓ Logged" confirmation on Home: a quick satisfied pulse on
-   the primary button + a muted-green tag that fades within ~2s, leaving nothing. */
-@keyframes aConfirmPulse {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.03); }
-  100% { transform: scale(1); }
-}
-@keyframes aConfirmFade {
-  0% { opacity: 0; }
-  12% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { opacity: 0; }
-}
 @keyframes aPop {
   0% { opacity: 0; transform: scale(0.5); }
   60% { transform: scale(1.12); }

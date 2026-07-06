@@ -65,10 +65,6 @@ export function useAppState({
   const [displayReps, setDisplayReps] = useState(0);
   const [numberSaved, setNumberSaved] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  // One-shot flag: set when the user leaves the Reward flow back to Home right
-  // after logging, so Home can play a transient "✓ Logged" confirmation once.
-  // Home consumes (clears) it on mount, so it never replays on later visits.
-  const [justLogged, setJustLogged] = useState(false);
   const [hypeStep, setHypeStep] = useState<"primer" | "countdown" | "go">(
     "primer",
   );
@@ -242,12 +238,6 @@ export function useAppState({
   const nav = (s: Screen) => {
     setScreen(s);
     window.scrollTo(0, 0);
-  };
-  // Leaving the Reward screen back to Home after a log → arm the one-shot
-  // confirmation. Same batch as the nav, so Home sees the flag on mount.
-  const finishReward = () => {
-    setJustLogged(true);
-    nav("home");
   };
   const showToast = (m: string) => {
     setToast(m);
@@ -610,10 +600,6 @@ export function useAppState({
   const baselineAnx = trend.length ? Number(trend[0]).toFixed(1) : "—";
   const hasRepsToday = user.repsToday >= 1;
   const todayMode = modeFor(Math.max(1, user.repsToday));
-  // Daily Modes still compute + drive the Reward reveal from day one; the Home
-  // mode badge is gated on tenure so a brand-new user's Home stays calm. Unlocks
-  // once they've logged reps on 3+ distinct days.
-  const modeUnlocked = (dash?.user.activeDays ?? 0) >= 3;
 
   // ---- Progression (Ranks + Daily Modes) ----
   const baseRank = baseRankForLevel(level);
@@ -758,9 +744,6 @@ export function useAppState({
     trend,
     haptic,
     nav,
-    finishReward,
-    justLogged,
-    setJustLogged,
     showToast,
     startHype,
     hypeGo,
@@ -798,7 +781,6 @@ export function useAppState({
     baselineAnx,
     hasRepsToday,
     todayMode,
-    modeUnlocked,
     baseRank,
     nextLockedLvl,
     journeyRanks,

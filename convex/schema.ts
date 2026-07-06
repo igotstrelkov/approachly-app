@@ -30,7 +30,6 @@ export default defineSchema({
     greatSets: v.number(),
     gotNumbers: v.number(),
     peakModeN: v.optional(v.number()), // highest daily mode tier ever reached (milestones)
-    activeDays: v.optional(v.number()), // distinct days with ≥1 rep — gates the Home mode badge
 
     // rolling day/week state (keyed so a stale day/week reads as 0)
     repsToday: v.number(),
