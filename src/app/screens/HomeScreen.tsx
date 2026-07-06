@@ -64,7 +64,7 @@ export function HomeScreen() {
 
       {isFresh ? (
         <>
-          <div style={{ ...eyebrow("var(--go)"), marginBottom: 10 }}>
+          <div style={{ ...eyebrow("var(--ash)"), marginBottom: 10 }}>
             Day zero
           </div>
           <div
@@ -494,8 +494,8 @@ export function HomeScreen() {
                 n: 1,
                 c: "var(--go)",
                 bg: "rgba(255,178,62,.14)",
-                h: "Get hyped",
-                p: "A 30-second primer to beat the freeze.",
+                h: "Walk over",
+                p: "Just walk over and say hi.",
               },
               {
                 n: 2,
