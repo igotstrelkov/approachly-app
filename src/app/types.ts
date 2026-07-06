@@ -7,7 +7,8 @@ export type Screen =
   | "you"
   | "quiz"
   | "ranks"
-  | "ladder";
+  | "ladder"
+  | "challengeIntro";
 export type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
 
 // Onboarding step order — the single source of truth for the quiz sequence.
@@ -15,7 +16,7 @@ export type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
 // step is an edit to this array, not a hand-renumber of a dozen `quizStep === N`
 // checks scattered through the render.
 export const STEP_ORDER = [
-  "reframe", // "swiping is hiding" reframe + chart
+  "reframe", // "stop swiping, start approaching" reframe + chart
   "scenario", // what usually happens when you see someone (freq)
   "anxiety", // baseline anxiety slider
   "motivation", // why you're here (multi-select)

@@ -1,12 +1,12 @@
 "use client";
 import { useApp } from "../AppContext";
 import { DISPLAY, MONO, eyebrow, iconBtn } from "../theme";
-import { LADDER, LADDER_THRESHOLD } from "../lib/ladder";
+import { DAYS, CHALLENGE_LENGTH } from "../lib/ladder";
 
 export function LadderScreen() {
-  const { nav, ladderTier, tierCleared, mastered } = useApp();
-  // top → bottom: tier 5 at the summit, tier 1 at the base
-  const rows = LADDER.map((t, i) => ({ tier: i + 1, ...t })).reverse();
+  const { nav, challengeDay, challengeDone } = useApp();
+  // top → bottom: Day 7 at the summit, Day 1 at the base
+  const rows = [...DAYS].reverse();
   return (
     <div
       style={{
@@ -21,7 +21,7 @@ export function LadderScreen() {
       </div>
 
       <div style={{ ...eyebrow("var(--go)"), letterSpacing: 2, marginBottom: 6 }}>
-        The ladder
+        The 7-Day Challenge
       </div>
       <div
         style={{
@@ -33,7 +33,7 @@ export function LadderScreen() {
           marginBottom: 6,
         }}
       >
-        {mastered ? "You climbed it." : "Five rungs to climb."}
+        {challengeDone ? "You did all seven." : "Seven days to climb."}
       </div>
       <div
         style={{
@@ -43,20 +43,20 @@ export function LadderScreen() {
           lineHeight: 1.5,
         }}
       >
-        {mastered
-          ? "You cleared every rung. Keep going with free reps — the ladder's yours to revisit anytime."
-          : `Clear ${LADDER_THRESHOLD} missions on a rung to climb to the next. Step down anytime — that's the point.`}
+        {challengeDone
+          ? "You finished every day. Keep going with free reps — the challenge is yours to revisit anytime."
+          : "One small mission per day, at your own pace. A day only advances when you complete it — step back anytime."}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column" }}>
         {rows.map((r, i, arr) => {
           const isTop = i === 0,
             isBottom = i === arr.length - 1;
-          const cleared = mastered ? true : r.tier < ladderTier;
-          const current = !mastered && r.tier === ladderTier;
-          const masteredTop = mastered && r.tier === 5;
-          const fillAbove = !isTop && (mastered || r.tier + 1 <= ladderTier);
-          const fillBelow = !isBottom && (mastered || r.tier <= ladderTier);
+          const cleared = challengeDone ? true : r.day < challengeDay;
+          const current = !challengeDone && r.day === challengeDay;
+          const doneTop = challengeDone && r.day === CHALLENGE_LENGTH;
+          const fillAbove = !isTop && (challengeDone || r.day + 1 <= challengeDay);
+          const fillBelow = !isBottom && (challengeDone || r.day <= challengeDay);
           const spine = (on: boolean) =>
             on
               ? { background: "var(--go)" }
@@ -65,13 +65,13 @@ export function LadderScreen() {
                     "repeating-linear-gradient(var(--ashDim) 0 3px, transparent 3px 8px)",
                 };
           const nodeBg =
-            masteredTop || current
+            doneTop || current
               ? "var(--go)"
               : cleared
                 ? "rgba(52,209,126,.2)"
                 : "var(--charcoal)";
           const nodeColor =
-            masteredTop || current
+            doneTop || current
               ? "#07130C"
               : cleared
                 ? "var(--go)"
@@ -83,7 +83,7 @@ export function LadderScreen() {
               : "1px solid var(--slate)";
           return (
             <div
-              key={r.tier}
+              key={r.day}
               style={{
                 display: "flex",
                 gap: 14,
@@ -125,7 +125,7 @@ export function LadderScreen() {
                     zIndex: 1,
                   }}
                 >
-                  {masteredTop ? "👑" : cleared ? "✓" : r.tier}
+                  {doneTop ? "👑" : cleared ? "✓" : r.day}
                 </div>
                 <div
                   style={{
@@ -162,7 +162,7 @@ export function LadderScreen() {
                       color: cleared || current ? "var(--bone)" : "var(--ashDim)",
                     }}
                   >
-                    {r.name}
+                    Day {r.day} · {r.chapter}
                   </div>
                   <span
                     style={{
@@ -172,13 +172,13 @@ export function LadderScreen() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {masteredTop
-                      ? "Mastered"
+                    {doneTop
+                      ? "Done"
                       : current
-                        ? `${tierCleared}/${LADDER_THRESHOLD}`
+                        ? "You're here"
                         : cleared
                           ? "Cleared"
-                          : `Tier ${r.tier}`}
+                          : `Day ${r.day}`}
                   </span>
                 </div>
                 <div
@@ -190,7 +190,7 @@ export function LadderScreen() {
                   }}
                 >
                   {current ? "● You're here — " : ""}
-                  {r.missions[0]}
+                  {r.mission}
                 </div>
               </div>
             </div>

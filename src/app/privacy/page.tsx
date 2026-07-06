@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 export const metadata: Metadata = { title: "Privacy Policy — Couragely" };
@@ -40,9 +41,9 @@ const back: CSSProperties = {
 export default function Privacy() {
   return (
     <div style={wrap}>
-      <a href="/" style={back}>
+      <Link href="/" style={back}>
         ← Back to Couragely
-      </a>
+      </Link>
       <h1 style={h1}>Privacy Policy</h1>
       <p style={muted}>Last updated: July 2026</p>
 

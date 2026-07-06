@@ -55,7 +55,7 @@ export function LogScreen() {
                     flexShrink: 0,
                   }}
                 >
-                  Tier {activeMission.tier}
+                  Day {activeMission.day}
                 </span>
                 <span
                   style={{

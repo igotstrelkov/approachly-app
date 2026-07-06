@@ -12,33 +12,24 @@ async function meOrThrow(ctx: MutationCtx) {
   return user;
 }
 
-const MAX_TIER = 5;
-
-/** "Swap" → show a different mission from the same tier's pool. */
-export const swapMission = mutation({
+/** "Too much today" → step back a day (zero penalty — the therapeutic principle).
+ * No skip-ahead: the sequence is the point; a confident user just does the easy
+ * days fast. */
+export const stepBackDay = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await meOrThrow(ctx);
-    await ctx.db.patch(user._id, { missionIdx: (user.missionIdx ?? 0) + 1 });
+    const day = Math.max(1, (user.challengeDay ?? 1) - 1);
+    await ctx.db.patch(user._id, { challengeDay: day });
   },
 });
 
-/** "Too much" → step down a rung (zero penalty — the therapeutic principle). */
-export const stepDownTier = mutation({
+/** "Skip — just let me log freely" → leave the challenge for the free-play
+ * steady state, from the onboarding hand-off. */
+export const skipChallenge = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await meOrThrow(ctx);
-    const tier = Math.max(1, (user.ladderTier ?? 1) - 1);
-    await ctx.db.patch(user._id, { ladderTier: tier, tierCleared: 0 });
-  },
-});
-
-/** "Too easy" → step up a rung. */
-export const stepUpTier = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const user = await meOrThrow(ctx);
-    const tier = Math.min(MAX_TIER, (user.ladderTier ?? 1) + 1);
-    await ctx.db.patch(user._id, { ladderTier: tier, tierCleared: 0 });
+    await ctx.db.patch(user._id, { challengeDone: true });
   },
 });

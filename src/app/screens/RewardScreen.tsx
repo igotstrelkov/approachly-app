@@ -5,7 +5,6 @@ import { trackCustom } from "@/lib/analytics";
 import { useApp } from "../AppContext";
 import { hexA } from "../lib/chart";
 import { DISPLAY, GO_GRAD, MONO } from "../theme";
-import { tierName } from "../lib/ladder";
 
 function useWindowSize() {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -50,9 +49,9 @@ export function RewardScreen() {
                 height={height}
                 recycle={false}
                 numberOfPieces={
-                  reward.ladderMastered
+                  reward.challengeComplete
                     ? 400
-                    : reward.tierUp || reward.leveledUp || reward.rankUp
+                    : reward.leveledUp || reward.rankUp
                       ? 260
                       : 180
                 }
@@ -197,18 +196,16 @@ export function RewardScreen() {
                   icon: string;
                   big?: boolean;
                 }[] = [];
-                if (reward.ladderMastered)
-                  events.push({ key: "mastered", label: "Ladder mastered", color: go, icon: "👑", big: true });
+                if (reward.challengeComplete)
+                  events.push({ key: "challenge", label: "Challenge complete", color: go, icon: "👑", big: true });
                 if (reward.rankUp)
                   events.push({ key: "rank", label: `New rank · ${reward.newRank}`, color: ember, icon: "⬆" });
-                if (reward.tierUp)
-                  events.push({ key: "tier", label: `Tier up · ${tierName(reward.newLadderTier)}`, color: go, icon: "▲" });
                 if (reward.leveledUp)
                   events.push({ key: "level", label: `Level up · Level ${reward.newLevel}`, color: ember, icon: "⬆" });
                 if (reward.milestone)
                   events.push({ key: "ms", label: reward.milestone.label, color: reward.milestone.color, icon: "⭐" });
-                if (reward.missionComplete)
-                  events.push({ key: "mission", label: "Mission complete", color: go, icon: "✓" });
+                if (reward.missionComplete && !reward.challengeComplete)
+                  events.push({ key: "mission", label: `Day ${reward.missionDay} done`, color: go, icon: "✓" });
                 if (events.length === 0) return null;
                 const [head, ...chips] = events;
                 return (

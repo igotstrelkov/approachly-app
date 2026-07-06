@@ -472,7 +472,7 @@ export function YouScreen() {
           marginTop: 18,
         }}
       >
-        Couragely · Swiping is hiding · 18+
+        Couragely · Stop swiping, start Approaching · 18+
       </div>
     </div>
   );

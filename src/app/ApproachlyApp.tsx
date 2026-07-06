@@ -19,6 +19,7 @@ import { LandingScreen } from "./screens/LandingScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { QuizScreen } from "./screens/QuizScreen";
 import { LadderScreen } from "./screens/LadderScreen";
+import { ChallengeIntroScreen } from "./screens/ChallengeIntroScreen";
 
 export default function ApproachlyApp(props: {
   startScreen?: "Home" | "Onboarding";
@@ -105,8 +106,11 @@ export default function ApproachlyApp(props: {
         {/* ============ RANKS (permanent) ============ */}
         {screen === "ranks" && <RanksScreen />}
 
-        {/* ============ LADDER (exposure missions) ============ */}
+        {/* ============ LADDER (7-Day Challenge roadmap) ============ */}
         {screen === "ladder" && <LadderScreen />}
+
+        {/* ============ CHALLENGE INTRO (onboarding hand-off) ============ */}
+        {screen === "challengeIntro" && <ChallengeIntroScreen />}
 
         {/* ============ LANDING (signed-out front door) ============ */}
         {screen === "landing" && <LandingScreen />}

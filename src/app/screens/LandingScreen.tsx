@@ -52,7 +52,7 @@ export function LandingScreen() {
           textAlign: "center",
         }}
       >
-        Swiping is hiding · 18+
+        Stop swiping, Start Approaching · 18+
       </div>
       <div
         style={{

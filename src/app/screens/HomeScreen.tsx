@@ -1,7 +1,7 @@
 "use client";
 import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
-import { LADDER_THRESHOLD } from "../lib/ladder";
+import { CHALLENGE_LENGTH } from "../lib/ladder";
 
 export function HomeScreen() {
   const {
@@ -20,15 +20,11 @@ export function HomeScreen() {
     levelPct,
     nextRankHint,
     xpToNext,
-    ladderTier,
-    tierCleared,
-    mastered,
-    currentMission,
-    tierData,
+    challengeDay,
+    challengeDone,
+    today,
     startMission,
-    swapMission,
-    stepDownTier,
-    stepUpTier,
+    stepBackDay,
     logFreeform,
   } = useApp();
   return (
@@ -380,9 +376,9 @@ export function HomeScreen() {
       )}
 
       {/* ACTIONS */}
-      {!mastered && (
+      {!challengeDone && (
         <>
-          {/* Today's mission — the hero action (graduated exposure ladder) */}
+          {/* Today's mission — the hero action (7-Day Challenge) */}
           <div
             style={{
               background: "var(--charcoal)",
@@ -402,7 +398,7 @@ export function HomeScreen() {
               }}
             >
               <span style={{ ...eyebrow("var(--go)"), letterSpacing: 1.5 }}>
-                Today&apos;s mission · Tier {ladderTier}
+                Day {challengeDay} of {CHALLENGE_LENGTH} · {today.chapter}
               </span>
               <button
                 onClick={() => nav("ladder")}
@@ -416,7 +412,7 @@ export function HomeScreen() {
                   fontFamily: MONO,
                 }}
               >
-                The ladder ›
+                The challenge ›
               </button>
             </div>
             <div
@@ -429,7 +425,7 @@ export function HomeScreen() {
                 marginBottom: 8,
               }}
             >
-              {currentMission}
+              {today.mission}
             </div>
             <div
               style={{
@@ -439,7 +435,7 @@ export function HomeScreen() {
                 marginBottom: 16,
               }}
             >
-              {tierData.why}
+              {today.why}
             </div>
             <div
               style={{
@@ -451,7 +447,7 @@ export function HomeScreen() {
               }}
             >
               <div style={{ display: "flex", gap: 5, flex: 1 }}>
-                {Array.from({ length: LADDER_THRESHOLD }).map((_, i) => (
+                {Array.from({ length: CHALLENGE_LENGTH }).map((_, i) => (
                   <div
                     key={i}
                     style={{
@@ -459,7 +455,7 @@ export function HomeScreen() {
                       height: 6,
                       borderRadius: 999,
                       background:
-                        i < tierCleared ? "var(--go)" : "var(--slate)",
+                        i < challengeDay - 1 ? "var(--go)" : "var(--slate)",
                     }}
                   />
                 ))}
@@ -472,7 +468,7 @@ export function HomeScreen() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {tierCleared}/{LADDER_THRESHOLD} to tier up
+                Day {challengeDay} of {CHALLENGE_LENGTH}
               </span>
             </div>
             <button
@@ -488,65 +484,28 @@ export function HomeScreen() {
                 fontSize: 19,
                 textTransform: "uppercase",
                 cursor: "pointer",
-                marginBottom: 12,
+                marginBottom: challengeDay > 1 ? 12 : 0,
               }}
             >
-              Start mission →
+              Start Day {challengeDay} →
             </button>
-            <div style={{ display: "flex", gap: 8 }}>
+            {challengeDay > 1 && (
               <button
-                onClick={swapMission}
+                onClick={stepBackDay}
                 style={{
-                  flex: 1,
-                  background: "var(--slate)",
-                  border: "1px solid var(--slateHi)",
-                  borderRadius: 10,
-                  padding: "9px 0",
+                  width: "100%",
+                  background: "none",
+                  border: "none",
+                  padding: "4px 0",
                   color: "var(--ash)",
                   fontSize: 12.5,
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
-                Swap
+                Too much today — step back a day
               </button>
-              <button
-                onClick={stepDownTier}
-                disabled={ladderTier <= 1}
-                style={{
-                  flex: 1,
-                  background: "var(--slate)",
-                  border: "1px solid var(--slateHi)",
-                  borderRadius: 10,
-                  padding: "9px 0",
-                  color: "var(--ash)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: ladderTier <= 1 ? "default" : "pointer",
-                  opacity: ladderTier <= 1 ? 0.4 : 1,
-                }}
-              >
-                Too much
-              </button>
-              <button
-                onClick={stepUpTier}
-                disabled={ladderTier >= 5}
-                style={{
-                  flex: 1,
-                  background: "var(--slate)",
-                  border: "1px solid var(--slateHi)",
-                  borderRadius: 10,
-                  padding: "9px 0",
-                  color: "var(--ash)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: ladderTier >= 5 ? "default" : "pointer",
-                  opacity: ladderTier >= 5 ? 0.4 : 1,
-                }}
-              >
-                Too easy
-              </button>
-            </div>
+            )}
           </div>
           <div
             style={{
@@ -593,7 +552,7 @@ export function HomeScreen() {
           </button>
         </>
       )}
-      {mastered && (
+      {challengeDone && (
       <div
         style={{
           display: "flex",
@@ -714,7 +673,7 @@ export function HomeScreen() {
               cursor: "pointer",
             }}
           >
-            Revisit the ladder ›
+            Revisit the challenge ›
           </button>
       </div>
       )}
