@@ -316,7 +316,7 @@ export function HomeScreen() {
               />
             </g>
           </svg>
-          <div
+          {/* <div
             style={{
               fontSize: 12,
               color: "var(--ash)",
@@ -324,7 +324,7 @@ export function HomeScreen() {
             }}
           >
             {chart.chartSubcaption}
-          </div>
+          </div> */}
 
           {hasRepsToday && (
             // Quiet today-status strip: reads as status, not an action, so it

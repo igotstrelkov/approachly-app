@@ -147,10 +147,10 @@ export function buildChart(
     // prompt for a rep; in the first week (< CHART_CAPTION_TAUGHT_AT approaches)
     // teach the counterintuitive "down = good" AND reassure it's real data; once
     // established, trim to just the essential cue.
-    chartSubcaption: !hasDelta
-      ? "Baseline set. Log a rep to start drawing your line."
-      : totalApproaches < CHART_CAPTION_TAUGHT_AT
-        ? "Down is the win. Your real line — not a promise."
-        : "Down is the win.",
+    // chartSubcaption: !hasDelta
+    //   ? "Baseline set. Log a rep to start drawing your line."
+    //   : totalApproaches < CHART_CAPTION_TAUGHT_AT
+    //     ? "Down is the win. Your real line — not a promise."
+    //     : "Down is the win.",
   };
 }
