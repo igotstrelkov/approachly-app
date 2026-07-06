@@ -375,11 +375,36 @@ export function useAppState({
     missionComplete: boolean,
     challengeComplete: boolean,
     missionDay: number,
+    // Daily Modes are unlocked only after the 7-day challenge. Until then the
+    // reward hero references challenge/mission progress, never a mode tier.
+    showMode: boolean,
   ) {
+    const heroColor = showMode ? mode.color : "#34D17E";
+    const heroEmoji = showMode ? mode.emoji : "✓";
+    const heroName = showMode
+      ? mode.name
+      : challengeComplete
+        ? "You did all 7"
+        : missionComplete
+          ? `Day ${missionDay} of 7 complete`
+          : "Rep logged";
+    const heroBlurb = showMode
+      ? mode.blurb
+      : challengeComplete
+        ? "The 7-day challenge is done. Daily Modes just unlocked — a new, optional way to play."
+        : missionComplete
+          ? missionDay < 7
+            ? `Day ${missionDay + 1} is there whenever you're ready.`
+            : "You carried it. Showing up is the whole win."
+          : "Off-plan — still a rep, still counts.";
     return {
       approachId,
       xp,
       mode,
+      heroColor,
+      heroEmoji,
+      heroName,
+      heroBlurb,
       repsToday,
       streak,
       leveledUp,
@@ -444,9 +469,11 @@ export function useAppState({
     const newTotal = prevTotal + 1;
     const isFirstEver = res.newTotal === 1;
     const countMs = [10, 25, 50, 100, 250, 500];
+    // A "New peak" milestone names a mode tier, so it only applies once Daily
+    // Modes are unlocked (post-graduation). Pre-graduation it's suppressed.
     const milestone = isFirstEver
       ? { label: "Day one · you beat the freeze", color: "#34D17E" }
-      : res.isNewPeak
+      : challengeDone && res.isNewPeak
         ? { label: `New peak · ${mode.emoji} ${mode.name}`, color: mode.color }
         : countMs.includes(res.newTotal)
           ? { label: `${res.newTotal} approaches banked`, color: "#FFB23E" }
@@ -467,6 +494,7 @@ export function useAppState({
         res.missionComplete,
         res.challengeComplete,
         activeMission?.day ?? 0,
+        challengeDone, // modes shown only if already graduated before this rep
       ),
     );
     setDisplayXp(0);

@@ -3,8 +3,16 @@ import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
 export function HypeScreen() {
-  const { nav, hypeStep, hypeWhy, hypeBarrier, hypeGo, hypeCount, startLog } =
-    useApp();
+  const {
+    nav,
+    hypeStep,
+    hypeWhy,
+    hypeBarrier,
+    hypeGo,
+    hypeCount,
+    startLog,
+    activeMission,
+  } = useApp();
   const barrier = hypeBarrier();
   return (
           <div
@@ -156,56 +164,61 @@ export function HypeScreen() {
                       </div>
                     </div>
                   )}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 13,
-                      alignItems: "center",
-                      background: "var(--charcoal)",
-                      border: "1px solid var(--slate)",
-                      borderRadius: 16,
-                      padding: 16,
-                      marginBottom: 12,
-                    }}
-                  >
+                  {/* Generic conversation-opener — only for off-plan hype.
+                      During a challenge mission the mission itself is the cue
+                      (e.g. "smile at someone"), so a full opener line is wrong. */}
+                  {!activeMission && (
                     <div
                       style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 11,
-                        background: "rgba(90,155,230,.14)",
                         display: "flex",
+                        gap: 13,
                         alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                        color: "var(--cool)",
-                        fontSize: 18,
+                        background: "var(--charcoal)",
+                        border: "1px solid var(--slate)",
+                        borderRadius: 16,
+                        padding: 16,
+                        marginBottom: 12,
                       }}
                     >
-                      “
-                    </div>
-                    <div>
                       <div
                         style={{
-                          fontSize: 12,
-                          color: "var(--ash)",
-                          marginBottom: 2,
+                          width: 38,
+                          height: 38,
+                          borderRadius: 11,
+                          background: "rgba(90,155,230,.14)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          color: "var(--cool)",
+                          fontSize: 18,
                         }}
                       >
-                        An easy opener
+                        “
                       </div>
-                      <div
-                        style={{
-                          fontSize: 15,
-                          color: "var(--bone)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        &quot;Hey — this is random, but I saw you and had to say
-                        hi.&quot;
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--ash)",
+                            marginBottom: 2,
+                          }}
+                        >
+                          An easy opener
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            color: "var(--bone)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          &quot;Hey — this is random, but I saw you and had to
+                          say hi.&quot;
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                   <div style={{ textAlign: "center", marginTop: 22 }}>
                     <div
                       style={{

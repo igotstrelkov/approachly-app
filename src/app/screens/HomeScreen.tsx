@@ -330,11 +330,12 @@ export function HomeScreen() {
             {chart.chartSubcaption}
           </div>
 
-          {hasRepsToday && (
-            // Quiet today-status strip: reads as status, not an action, so it
-            // doesn't compete with the CTA cards below. Affirms the act (never
-            // a raw count at 1 — "showing up is the win"); a count only shows
-            // from 2+, where it reads as momentum. Non-interactive by design.
+          {hasRepsToday && challengeDone && (
+            // Quiet today-status strip — Daily Modes, unlocked only after the
+            // 7-day challenge. Reads as status, not an action, so it doesn't
+            // compete with the CTA cards below. Affirms the act (never a raw
+            // count at 1 — "showing up is the win"); a count only shows from
+            // 2+, where it reads as momentum. Non-interactive by design.
             <div
               style={{
                 display: "flex",
@@ -691,8 +692,8 @@ export function HomeScreen() {
                 n: 1,
                 c: "var(--go)",
                 bg: "rgba(255,178,62,.14)",
-                h: "Get hyped",
-                p: "A 30-second primer to beat the freeze.",
+                h: "Walk over",
+                p: "Just walk over and say hi.",
               },
               {
                 n: 2,

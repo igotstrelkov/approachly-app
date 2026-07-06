@@ -57,7 +57,7 @@ export function RewardScreen() {
                 }
                 gravity={0.25}
                 colors={[
-                  reward.mode.color,
+                  reward.heroColor,
                   "#F4F3F0",
                   "#FFB23E",
                   "#34D17E",
@@ -96,7 +96,7 @@ export function RewardScreen() {
                     position: "absolute",
                     inset: -24,
                     borderRadius: "50%",
-                    background: `radial-gradient(circle,${hexA(reward.mode.color, 0.5)} 0%,transparent 70%)`,
+                    background: `radial-gradient(circle,${hexA(reward.heroColor, 0.5)} 0%,transparent 70%)`,
                     animation: "aGlow 2.4s ease-in-out infinite",
                   }}
                 />
@@ -111,10 +111,10 @@ export function RewardScreen() {
                     justifyContent: "center",
                     fontSize: 50,
                     background: "var(--charcoal)",
-                    border: `1.5px solid ${reward.mode.color}`,
+                    border: `1.5px solid ${reward.heroColor}`,
                   }}
                 >
-                  {reward.mode.emoji}
+                  {reward.heroEmoji}
                 </div>
               </div>
               <div
@@ -134,11 +134,11 @@ export function RewardScreen() {
                   fontFamily: DISPLAY,
                   fontSize: 28,
                   textTransform: "uppercase",
-                  color: reward.mode.color,
+                  color: reward.heroColor,
                   animation: "aFadeUp .5s .1s both",
                 }}
               >
-                {reward.mode.name}
+                {reward.heroName}
               </div>
               <div
                 style={{
@@ -151,7 +151,7 @@ export function RewardScreen() {
                   animation: "aFadeUp .5s .16s both",
                 }}
               >
-                {reward.mode.blurb}
+                {reward.heroBlurb}
               </div>
 
               <div
