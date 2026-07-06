@@ -1,8 +1,22 @@
 "use client";
+import { useEffect, useState } from "react";
+import Confetti from "react-confetti";
 import { trackCustom } from "@/lib/analytics";
 import { useApp } from "../AppContext";
 import { hexA } from "../lib/chart";
 import { DISPLAY, GO_GRAD, MONO } from "../theme";
+
+function useWindowSize() {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const update = () =>
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return size;
+}
 
 export function RewardScreen() {
   const {
@@ -15,6 +29,7 @@ export function RewardScreen() {
     showToast,
     nav,
   } = useApp();
+  const { width, height } = useWindowSize();
   if (!reward) return null;
   return (
           <div
@@ -28,18 +43,31 @@ export function RewardScreen() {
               padding: "calc(env(safe-area-inset-top, 0px) + 20px) 24px 32px",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                pointerEvents: "none",
-                overflow: "hidden",
-              }}
-            >
-              {reward.confetti.map((c) => (
-                <div key={c.id} style={c.style} />
-              ))}
-            </div>
+            {reward.confetti && (
+              <Confetti
+                width={width}
+                height={height}
+                recycle={false}
+                numberOfPieces={
+                  reward.leveledUp || reward.rankUp ? 260 : 180
+                }
+                gravity={0.25}
+                colors={[
+                  reward.mode.color,
+                  "#F4F3F0",
+                  "#FFB23E",
+                  "#34D17E",
+                  "#FF5A36",
+                ]}
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  pointerEvents: "none",
+                  zIndex: 60,
+                }}
+              />
+            )}
             <div
               style={{
                 position: "relative",

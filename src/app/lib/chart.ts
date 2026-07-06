@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 // Lifetime approaches after which the chart caption trims from teach+reassure
 // ("Down is the win. Your real line — not a promise.") to just the essential
 // cue ("Down is the win."). The reassurance is only needed for the first week
@@ -155,29 +153,4 @@ export function buildChart(
         ? "Down is the win. Your real line — not a promise."
         : "Down is the win.",
   };
-}
-
-export type Confetto = { id: number; style: CSSProperties };
-export function makeConfetti(accent: string, enabled: boolean): Confetto[] {
-  if (!enabled) return [];
-  const cols = [accent, "#F4F3F0", "#FFB23E", "#34D17E", "#FF5A36"];
-  const arr: Confetto[] = [];
-  for (let i = 0; i < 52; i++) {
-    const size = 6 + Math.random() * 8,
-      round = Math.random() > 0.5;
-    arr.push({
-      id: i,
-      style: {
-        position: "absolute",
-        top: -24,
-        left: `${Math.random() * 100}%`,
-        width: size,
-        height: round ? size : size * 0.45,
-        background: cols[i % cols.length],
-        borderRadius: round ? "50%" : 2,
-        animation: `aConfetti ${(0.95 + Math.random() * 0.9).toFixed(2)}s ${(Math.random() * 0.3).toFixed(2)}s cubic-bezier(.2,.6,.35,1) forwards`,
-      },
-    });
-  }
-  return arr;
 }

@@ -13,7 +13,7 @@ import {
 } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { buildChart, makeConfetti } from "./lib/chart";
+import { buildChart } from "./lib/chart";
 import {
   baseRankForLevel,
   levelForXp,
@@ -230,9 +230,9 @@ export function useAppState({
   );
 
 
-  const haptic = (ms = 12) => {
+  const haptic = (p: number | number[] = 12) => {
     try {
-      navigator.vibrate?.(ms);
+      navigator.vibrate?.(p);
     } catch {}
   };
   const nav = (s: Screen) => {
@@ -253,16 +253,20 @@ export function useAppState({
   const hypeGo = () => {
     setHypeStep("countdown");
     setHypeCount(3);
+    haptic(); // tick on "3"
+    let c = 3;
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
-      setHypeCount((c) => {
-        if (c - 1 <= 0) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setHypeStep("go");
-          return 0;
-        }
-        return c - 1;
-      });
+      c -= 1;
+      if (c <= 0) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        haptic([30, 50, 30]); // GO
+        setHypeStep("go");
+        setHypeCount(0);
+      } else {
+        haptic(); // tick on 2, 1
+        setHypeCount(c);
+      }
     }, 1000);
   };
   const hypeWhy = () => {
@@ -312,7 +316,6 @@ export function useAppState({
     nav("log");
   };
   const setAnx = (v: number) => {
-    haptic();
     setDraft((d) => ({ ...d, anxiety: v }));
   };
 
@@ -346,7 +349,7 @@ export function useAppState({
         : repsToday === 1
           ? "You broke the ice today"
           : "Rep " + repsToday + " today",
-      confetti: makeConfetti(mode.color, confetti),
+      confetti: confetti,
     };
   }
 
@@ -366,6 +369,7 @@ export function useAppState({
 
   const logIt = async () => {
     if (!draft.vibe) return;
+    haptic(20);
     const prevTotal = user.totalApproaches;
     let res: Awaited<ReturnType<typeof logRepMut>>;
     try {
@@ -420,6 +424,7 @@ export function useAppState({
     setScreen("reward");
     window.scrollTo(0, 0);
     animateReward(res.xpAwarded, newTotal);
+    haptic(res.rankUp || res.leveledUp ? [20, 40, 20] : 15);
   };
 
   // quiz
