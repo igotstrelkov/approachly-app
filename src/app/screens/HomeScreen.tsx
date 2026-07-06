@@ -1,7 +1,7 @@
 "use client";
 import { useApp } from "../AppContext";
-import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 import { CHALLENGE_LENGTH } from "../lib/ladder";
+import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
 export function HomeScreen() {
   const {
@@ -71,9 +71,6 @@ export function HomeScreen() {
 
       {isFresh ? (
         <>
-          <div style={{ ...eyebrow("var(--go)"), marginBottom: 10 }}>
-            Day zero
-          </div>
           <div
             style={{
               fontFamily: DISPLAY,
@@ -553,113 +550,112 @@ export function HomeScreen() {
         </>
       )}
       {challengeDone && (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          marginTop: 32,
-        }}
-      >
-        <button
-          onClick={startHype}
+        <div
           style={{
-            width: "100%",
-            cursor: "pointer",
-            background: "var(--charcoal)",
-            border: "1.5px solid var(--ember)",
-            borderRadius: 20,
-            padding: "18px 20px",
             display: "flex",
-            alignItems: "center",
-            gap: 14,
-            textAlign: "left",
+            flexDirection: "column",
+            gap: 12,
+            marginTop: 32,
           }}
         >
-          <div
+          <button
+            onClick={startLog}
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              background: "rgba(255,178,62,.14)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
+              width: "100%",
+              cursor: "pointer",
+              border: "none",
+              background: GO_GRAD,
+              color: "#07130C",
+              borderRadius: 22,
+              padding: "24px 20px",
+              boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)",
             }}
           >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--ember)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M13 2 L4 14 H12 L11 22 L20 10 H12 Z" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
             <div
               style={{
-                fontWeight: 700,
-                fontSize: 16,
-                color: "var(--bone)",
+                fontFamily: DISPLAY,
+                fontSize: 32,
+                textTransform: "uppercase",
+                lineHeight: 1,
               }}
             >
-              I&apos;m out — hype me
+              {isFresh ? "Log your first rep" : "Log a rep"}
             </div>
             <div
               style={{
                 fontSize: 12.5,
-                color: "var(--ash)",
-                marginTop: 1,
+                fontWeight: 600,
+                opacity: 0.72,
+                marginTop: 6,
               }}
             >
-              Before you walk over. 30 seconds.
+              {isFresh
+                ? "You walked over. This is the one."
+                : "You walked over. Bank it."}
             </div>
-          </div>
-          <span style={{ color: "var(--ember)", fontSize: 22 }}>›</span>
-        </button>
-
-        <button
-          onClick={startLog}
-          style={{
-            width: "100%",
-            cursor: "pointer",
-            border: "none",
-            background: GO_GRAD,
-            color: "#07130C",
-            borderRadius: 22,
-            padding: "24px 20px",
-            boxShadow: "0 14px 40px -10px rgba(52,209,126,.5)",
-          }}
-        >
-          <div
+          </button>
+          <button
+            onClick={startHype}
             style={{
-              fontFamily: DISPLAY,
-              fontSize: 32,
-              textTransform: "uppercase",
-              lineHeight: 1,
+              width: "100%",
+              cursor: "pointer",
+              background: "var(--charcoal)",
+              border: "1.5px solid var(--ember)",
+              borderRadius: 20,
+              padding: "18px 20px",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              textAlign: "left",
             }}
           >
-            {isFresh ? "Log your first rep" : "Log a rep"}
-          </div>
-          <div
-            style={{
-              fontSize: 12.5,
-              fontWeight: 600,
-              opacity: 0.72,
-              marginTop: 6,
-            }}
-          >
-            {isFresh
-              ? "You walked over. This is the one."
-              : "You walked over. Bank it."}
-          </div>
-        </button>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 13,
+                background: "rgba(255,178,62,.14)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--ember)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M13 2 L4 14 H12 L11 22 L20 10 H12 Z" />
+              </svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 16,
+                  color: "var(--bone)",
+                }}
+              >
+                I&apos;m out — hype me
+              </div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--ash)",
+                  marginTop: 1,
+                }}
+              >
+                Before you walk over. 30 seconds.
+              </div>
+            </div>
+            <span style={{ color: "var(--ember)", fontSize: 22 }}>›</span>
+          </button>
           <button
             onClick={() => nav("ladder")}
             style={{
@@ -675,7 +671,7 @@ export function HomeScreen() {
           >
             Revisit the challenge ›
           </button>
-      </div>
+        </div>
       )}
 
       {isFresh && (
