@@ -417,9 +417,9 @@ export function HomeScreen() {
                 fontSize: 12.5,
               }}
             >
-              <span style={{ fontSize: 15, lineHeight: 1 }}>
+              {/* <span style={{ fontSize: 15, lineHeight: 1 }}>
                 {todayMode.emoji}
-              </span>
+              </span> */}
               <span
                 style={{
                   letterSpacing: 1.5,
