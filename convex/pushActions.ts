@@ -21,14 +21,15 @@ type Recipient = {
   remaining: number;
 };
 
-// Encouraging daily lines — validate the act, never shame a miss. Rotated by
-// day so the notification doesn't go stale.
+// Daily lines — invitational, never obligational. Validate the act, never shame
+// a miss, never a quota. Rotated by day so it doesn't go stale. (See the
+// notification voice guidelines: one small, safe hello; showing up is the win.)
 const DAILY_LINES = [
-  "One rep today — that's the whole game.",
-  "Beat the freeze once today. Showing up is the win.",
-  "One approach today. Win or lose, it counts.",
-  "Today's rep is right there. Go say hi.",
-  "The freeze only wins if you skip it. Not today.",
+  "One hello today — that's the whole mission.",
+  "One rep today. Doesn't matter how it goes; showing up is the win.",
+  "If you get a moment out there today, say hi to someone. One's enough.",
+  "Your line moves one rep at a time. Ready when you are.",
+  "One small rep today. No rush.",
 ];
 function dailyLine(key: string) {
   let h = 0;
@@ -59,8 +60,8 @@ export const sendDueReminders = internalAction({
       const body =
         r.mode === "weekly"
           ? r.remaining <= 1
-            ? "One approach to hit this week's goal. Beat the freeze."
-            : `${r.remaining} approaches from this week's goal. One rep at a time.`
+            ? "One hello this week keeps your line moving. Whenever you're ready."
+            : "A rep or two this week keeps things going. One at a time, no pressure."
           : dailyLine(r.dayKey);
       const payload = JSON.stringify({ title: "Couragely", body, url: "/" });
       try {
@@ -89,6 +90,7 @@ export const sendDueReminders = internalAction({
         mode: k.mode,
         dayKey: k.dayKey,
         weekKey: k.weekKey,
+        now,
       });
     }
     return { attempted: due.length, sent: reminded.size };
@@ -109,7 +111,7 @@ export const sendTest = internalAction({
     let sent = 0, failed = 0;
     const payload = JSON.stringify({
       title: "Couragely",
-      body: "Test nudge — reminders are wired up. Beat the freeze.",
+      body: "Test nudge — reminders are wired up. One hello whenever you're ready.",
       url: "/",
     });
     for (const s of subs) {

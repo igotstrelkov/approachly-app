@@ -138,6 +138,15 @@ export const dueRecipients = internalQuery({
       const tz = user.timezone || "UTC";
       const { dow, hour } = localDowHour(now, tz);
       if (hour !== (user.reminderHour ?? 10)) continue; // wrong local hour
+      // Rough-patch cooldown: after a hard rep (went poorly / high nerves) we
+      // back off for ~48h — never push "do more" onto a low moment.
+      const ROUGH_COOLDOWN_MS = 48 * 60 * 60 * 1000;
+      if (
+        user.lastRepRough &&
+        user.lastRepAt &&
+        now - user.lastRepAt < ROUGH_COOLDOWN_MS
+      )
+        continue;
       const dayKey = localDayKey(now, tz, user.dayRolloverHour);
       const weekKey = isoWeekKey(dayKey);
       const freq = user.reminderFreq ?? "daily";
@@ -158,6 +167,18 @@ export const dueRecipients = internalQuery({
         const todayCount =
           user.currentDayKey === dayKey ? user.repsToday : 0;
         if (todayCount >= 1) continue; // already showed up today — no nag
+        // Taper: an invite that goes quiet gets quieter. 0–2 unanswered nudges →
+        // daily; 3–5 → ~weekly; 6+ → dormant (stop, no shame). Logging a rep
+        // resets the counter and re-arms full cadence.
+        const un = user.unansweredNudges ?? 0;
+        const gapDays = un < 3 ? 0 : un < 6 ? 7 : Infinity;
+        if (gapDays === Infinity) continue; // gone quiet — stop until they return
+        if (
+          gapDays > 0 &&
+          user.lastNudgeAt &&
+          now - user.lastNudgeAt < gapDays * 24 * 60 * 60 * 1000
+        )
+          continue;
         out.push({
           endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth,
           userId: sub.userId, mode: "daily", dayKey, weekKey, remaining: 0,
@@ -183,14 +204,20 @@ export const markReminded = internalMutation({
     mode: v.union(v.literal("daily"), v.literal("weekly")),
     dayKey: v.string(),
     weekKey: v.string(),
+    now: v.number(),
   },
-  handler: async (ctx, { userId, mode, dayKey, weekKey }) => {
-    await ctx.db.patch(
-      userId,
-      mode === "daily"
+  handler: async (ctx, { userId, mode, dayKey, weekKey, now }) => {
+    const user = await ctx.db.get(userId);
+    // Bump the unanswered-nudge counter (drives the taper) and stamp the send.
+    // A logged rep resets the counter, so this only climbs while they're away.
+    const unansweredNudges = (user?.unansweredNudges ?? 0) + 1;
+    await ctx.db.patch(userId, {
+      ...(mode === "daily"
         ? { lastRemindedDayKey: dayKey }
-        : { lastRemindedWeekKey: weekKey },
-    );
+        : { lastRemindedWeekKey: weekKey }),
+      unansweredNudges,
+      lastNudgeAt: now,
+    });
   },
 });
 

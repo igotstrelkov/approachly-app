@@ -48,6 +48,11 @@ export default defineSchema({
     lastRemindedWeekKey: v.optional(v.string()), // dedupe: one nudge per week (weekly mode)
     lastRemindedDayKey: v.optional(v.string()), // dedupe: one nudge per day (daily mode)
 
+    // notification cadence guardrails
+    unansweredNudges: v.optional(v.number()), // consecutive nudges since last rep; drives the taper
+    lastNudgeAt: v.optional(v.number()), // when we last nudged (taper gap math)
+    lastRepRough: v.optional(v.boolean()), // most recent rep was rough → cool off the next nudge
+
     lastRepAt: v.optional(v.number()),
   }).index("by_token", ["tokenId"]),
 

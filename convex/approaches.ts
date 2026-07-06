@@ -103,6 +103,12 @@ export const logRep = mutation({
       lastGoalWeekKey,
       lastRepAt: now,
       timezone: tz,
+      // Notification cadence: logging a rep re-arms full cadence (resets the
+      // taper). A "rough" rep (went poorly, or high nerves) cools off the next
+      // nudge so we never push "do more" onto a hard moment.
+      unansweredNudges: 0,
+      lastRepRough:
+        args.vibe === "STILL_A_REP" || args.anxietyBefore >= 8,
     });
 
     // Everything the Reward screen needs (PRD §6).
