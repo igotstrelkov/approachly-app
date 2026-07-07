@@ -12,7 +12,7 @@ Couragely is a men's approach-anxiety PWA: a daily "rep" tracker that turns walk
 - **Next.js 16.2** (App Router, Turbopack) — see the warning above; read `node_modules/next/dist/docs/` before framework work.
 - **React 19**, **TypeScript 5**, **ESLint 9** (`eslint-config-next`).
 - **Tailwind v4** is installed, but the app UI is **inline-styled with CSS custom properties**, not Tailwind classes (see Styling).
-- **Convex** backend (see Convex section), **Clerk** auth (`@clerk/nextjs`), **web-push** (weekly reminders), **sharp** (icon generation).
+- **Convex** backend (see Convex section), **Clerk** auth (`@clerk/nextjs`), **web-push** (daily/weekly reminders), **react-confetti** (reward celebration), **sharp** (icon generation).
 
 ## Run & verify
 - **Dev server:** `next dev -p 3200` — the app expects **:3200** (the `dev` script is bare `next dev`, which defaults to 3000; pass `-p 3200`). The environment tends to kill background servers, so restart as needed.
@@ -31,7 +31,7 @@ Couragely is a men's approach-anxiety PWA: a daily "rep" tracker that turns walk
 - Shared, stateless modules:
   - **`theme.ts`** — `DISPLAY`/`MONO` fonts, `GO_GRAD`, `iconBtn`, `eyebrow(color)`.
   - **`types.ts`** — `Screen`, `Vibe`, and the onboarding `STEP_ORDER` / `STEP` map.
-  - **`lib/levels.ts`** (XP/rank math), **`lib/modes.ts`** (daily mode tiers), **`lib/chart.ts`** (`buildChart`, `monotonePath`, `makeConfetti`, `hexA`).
+  - **`lib/levels.ts`** (XP/rank math), **`lib/modes.ts`** (daily mode tiers — the Reward reveal; the Home mode badge is gated until `activeDays >= 3`), **`lib/chart.ts`** (`buildChart`, `monotonePath`, `hexA` — the reward celebration uses **`react-confetti`**, not a hand-rolled system).
   - **`components/AnxRow.tsx`** — the 1–10 anxiety picker.
 - Other app files: `layout.tsx`, `ConvexClientProvider.tsx`, `MetaPixel.tsx`, `Plausible.tsx`, `PwaRegister.tsx`, `manifest.ts`, `opengraph-image.tsx`, `privacy/`.
 
@@ -61,8 +61,9 @@ Data-driven: `STEP_ORDER` (ordered array of step keys) → `STEP` name→index m
 
 ## Convex — project specifics
 (See the auto-managed Convex block below for the general rule: **read `convex/_generated/ai/guidelines.md` first**.)
-- Functions: `convex/{users,approaches,push,pushActions,crons,model,schema,auth.config}.ts`.
-- Data model (`schema.ts`): `users` (denormalized counters, keyed by Clerk `tokenIdentifier`), `approaches`, `pushSubscriptions`. Reads avoid unbounded history scans — counters live on the user doc.
+- Functions: `convex/{users,approaches,feedback,push,pushActions,crons,model,schema,auth.config}.ts`.
+- Data model (`schema.ts`): `users` (denormalized counters, keyed by Clerk `tokenIdentifier`), `approaches`, `pushSubscriptions`, `feedback`. Reads avoid unbounded history scans — counters live on the user doc (e.g. `activeDays`, which gates the Home mode badge).
+- **Reminder cadence** (highest-volume surface pre-ad-launch): `crons.ts` runs hourly → `pushActions.sendDueReminders` → `push.dueRecipients` picks who's due (user's local hour, daily/weekly, dedupe, skip-if-already-logged). Anti-nag guardrails: a **taper** (an unanswered invite quiets to weekly, then dormant; a logged rep re-arms it), a **48h cooldown after a rough rep**, and invitational copy in `pushActions.ts`. Never streak-guilt or absence-shame.
 - **Mutations validate args (`v.optional(...)`) and REJECT unknown args.** A new field must be added to BOTH `schema.ts` AND the mutation's args — and pushed — in lockstep with the frontend, or live writes/sign-ups break.
 - Push to dev deployment: `npx convex dev --once`. Deploy to prod: `npx convex deploy`. **Frontend + Convex must ship together** whenever args/schema change.
 

@@ -570,8 +570,8 @@ export function HomeScreen() {
                 n: 1,
                 c: "var(--go)",
                 bg: "rgba(255,178,62,.14)",
-                h: "Walk over",
-                p: "Just walk over and say hi.",
+                h: "Take the shot",
+                p: "Lock eyes, walk into her space and say hi.",
               },
               {
                 n: 2,

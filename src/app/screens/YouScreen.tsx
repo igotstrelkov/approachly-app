@@ -295,7 +295,7 @@ export function YouScreen() {
         </div>
 
         {/* Week rolls over */}
-        <div
+        {/* <div
           style={{
             display: "flex",
             alignItems: "center",
@@ -310,7 +310,7 @@ export function YouScreen() {
           <span style={{ fontSize: 13, color: "var(--ash)" }}>
             4:00 AM local
           </span>
-        </div>
+        </div> */}
       </div>
 
       {/* Feedback / feature requests */}

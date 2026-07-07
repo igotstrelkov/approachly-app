@@ -103,7 +103,8 @@ export function LandingScreen() {
             textAlign: "center",
           }}
         >
-          The real flex isn&apos;t a number — it&apos;s watching the fear drop.
+          The real flex isn&apos;t her number, <br />
+          it&apos;s watching your fear drop.
         </div>
       </div>
 
@@ -301,7 +302,7 @@ export function LandingScreen() {
           {[
             {
               n: "1",
-              h: "Get your mission",
+              h: "Take the challenge",
               p: "One approach a day, sized to where you're at.",
             },
             {
@@ -402,7 +403,7 @@ export function LandingScreen() {
                   marginBottom: 12,
                 }}
               >
-                It was never about a number.
+                It was never about her number.
               </div> */}
         <div
           style={{
@@ -415,7 +416,7 @@ export function LandingScreen() {
             marginBottom: 8,
           }}
         >
-          It was never about a number.
+          It was never about her number.
         </div>
         <div
           style={{
@@ -425,9 +426,9 @@ export function LandingScreen() {
             textAlign: "center",
           }}
         >
-          It&apos;s about not going home wondering &ldquo;what if.&rdquo; About
-          not doing life alone. Couragely just gets you to the first hello — the
-          rest is yours.
+          It&apos;s about not going home wondering &ldquo;what if&rdquo; — and
+          not staying the guy who freezes. Couragely gets you to the first
+          hello. Take enough of them and the fear just stops running your life.
         </div>
       </div>
 
