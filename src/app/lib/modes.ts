@@ -8,8 +8,8 @@ export type Mode = {
 export const MODES: Mode[] = [
   {
     n: 1,
-    name: "Warm-up",
-    emoji: "🔥",
+    name: "Logged",
+    emoji: "✅",
     color: "#34D17E",
     blurb: "The first one's the hardest — and you just beat the freeze.",
   },

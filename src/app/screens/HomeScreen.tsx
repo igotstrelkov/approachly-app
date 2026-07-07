@@ -417,10 +417,10 @@ export function HomeScreen() {
                 fontSize: 12.5,
               }}
             >
-              {/* <span style={{ fontSize: 15, lineHeight: 1 }}>
+              <span style={{ fontSize: 15, lineHeight: 1 }}>
                 {todayMode.emoji}
-              </span> */}
-              <span
+              </span>
+              {/* <span
                 style={{
                   letterSpacing: 1.5,
                   color: "var(--ash)",
@@ -428,7 +428,7 @@ export function HomeScreen() {
                 }}
               >
                 Today
-              </span>
+              </span> */}
               <span style={{ fontWeight: 700, color: todayMode.color }}>
                 {todayMode.name}
               </span>

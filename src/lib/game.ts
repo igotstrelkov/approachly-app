@@ -3,13 +3,55 @@
 // server returns the single +XP; the client only renders it.
 
 export const MODES = [
-  { tier: 1, key: "warmup", label: "Warm-up", emoji: "🔥", color: "var(--color-mode-warmup)" },
-  { tier: 2, key: "lockedin", label: "Locked In", emoji: "💪", color: "var(--color-mode-lockedin)" },
-  { tier: 3, key: "dialed", label: "Dialed", emoji: "⚡", color: "var(--color-mode-dialed)" },
-  { tier: 4, key: "beast", label: "Beast Mode", emoji: "🦍", color: "var(--color-mode-beast)" },
-  { tier: 5, key: "cracked", label: "Cracked", emoji: "🚀", color: "var(--color-mode-cracked)" },
-  { tier: 6, key: "him", label: "Him", emoji: "👑", color: "var(--color-mode-him)" },
-  { tier: 7, key: "finalboss", label: "Final Boss", emoji: "🌌", color: "var(--color-mode-finalboss)" },
+  {
+    tier: 1,
+    key: "logged",
+    label: "Logged",
+    emoji: "✅",
+    color: "var(--color-mode-logged)",
+  },
+  {
+    tier: 2,
+    key: "lockedin",
+    label: "Locked In",
+    emoji: "💪",
+    color: "var(--color-mode-lockedin)",
+  },
+  {
+    tier: 3,
+    key: "dialed",
+    label: "Dialed",
+    emoji: "⚡",
+    color: "var(--color-mode-dialed)",
+  },
+  {
+    tier: 4,
+    key: "beast",
+    label: "Beast Mode",
+    emoji: "🦍",
+    color: "var(--color-mode-beast)",
+  },
+  {
+    tier: 5,
+    key: "cracked",
+    label: "Cracked",
+    emoji: "🚀",
+    color: "var(--color-mode-cracked)",
+  },
+  {
+    tier: 6,
+    key: "him",
+    label: "Him",
+    emoji: "👑",
+    color: "var(--color-mode-him)",
+  },
+  {
+    tier: 7,
+    key: "finalboss",
+    label: "Final Boss",
+    emoji: "🌌",
+    color: "var(--color-mode-finalboss)",
+  },
 ] as const;
 
 export type Mode = (typeof MODES)[number];
@@ -19,16 +61,38 @@ export function modeForTier(tier: number): Mode {
   return MODES[idx - 1];
 }
 
-export const RANKS = ["Rookie", "Bold", "Fearless", "Ironclad", "Legend"] as const;
+export const RANKS = [
+  "Rookie",
+  "Bold",
+  "Fearless",
+  "Ironclad",
+  "Legend",
+] as const;
 export type Rank = (typeof RANKS)[number];
 
 function toRoman(n: number): string {
   const map: [number, string][] = [
-    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
-    [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+    [1000, "M"],
+    [900, "CM"],
+    [500, "D"],
+    [400, "CD"],
+    [100, "C"],
+    [90, "XC"],
+    [50, "L"],
+    [40, "XL"],
+    [10, "X"],
+    [9, "IX"],
+    [5, "V"],
+    [4, "IV"],
+    [1, "I"],
   ];
-  let r = "", x = Math.max(1, Math.floor(n));
-  for (const [v, s] of map) while (x >= v) { r += s; x -= v; }
+  let r = "",
+    x = Math.max(1, Math.floor(n));
+  for (const [v, s] of map)
+    while (x >= v) {
+      r += s;
+      x -= v;
+    }
   return r;
 }
 /** Named rank for a level; Legend gains a prestige numeral every 5 levels (Legend I, II…). */

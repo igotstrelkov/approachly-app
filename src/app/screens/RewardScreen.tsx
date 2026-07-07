@@ -343,7 +343,7 @@ export function RewardScreen() {
           }}
         >
           <span>📱</span>
-          {numberSaved ? "Contacts saved ✓" : "Got their contacts?"}
+          {numberSaved ? "Contact saved ✓" : "Got their contact?"}
         </button>
 
         <div style={{ flex: 1 }} />

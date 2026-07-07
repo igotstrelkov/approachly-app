@@ -17,13 +17,13 @@ export function clampAnxiety(a: number): number {
 
 // ---------- Daily modes (reset each day; green → heat → violet) ----------
 export const MODES = [
-  { tier: 1, key: "warmup", label: "Warm-up", emoji: "🔥" },
+  { tier: 1, key: "logged", label: "Logged", emoji: "✅" },
   { tier: 2, key: "lockedin", label: "Locked In", emoji: "💪" },
   { tier: 3, key: "dialed", label: "Dialed", emoji: "⚡" },
   { tier: 4, key: "beast", label: "Beast Mode", emoji: "🦍" },
   { tier: 5, key: "cracked", label: "Cracked", emoji: "🚀" },
   { tier: 6, key: "him", label: "Him", emoji: "👑" },
-  { tier: 7, key: "finalboss", label: "Final Boss", emoji: "🌌" },
+  { tier: 7, key: "finalboss", label: "Final Boss", emoji: "🔥" },
 ] as const;
 
 export type Mode = (typeof MODES)[number];
@@ -45,11 +45,27 @@ const PRESTIGE_BAND = 5; // levels per Legend numeral
 
 function toRoman(n: number): string {
   const map: [number, string][] = [
-    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
-    [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+    [1000, "M"],
+    [900, "CM"],
+    [500, "D"],
+    [400, "CD"],
+    [100, "C"],
+    [90, "XC"],
+    [50, "L"],
+    [40, "XL"],
+    [10, "X"],
+    [9, "IX"],
+    [5, "V"],
+    [4, "IV"],
+    [1, "I"],
   ];
-  let r = "", x = Math.max(1, Math.floor(n));
-  for (const [v, s] of map) while (x >= v) { r += s; x -= v; }
+  let r = "",
+    x = Math.max(1, Math.floor(n));
+  for (const [v, s] of map)
+    while (x >= v) {
+      r += s;
+      x -= v;
+    }
   return r;
 }
 
@@ -91,7 +107,7 @@ export function levelFromXp(totalXp: number): LevelInfo {
 export function localDayKey(
   ts: number,
   timezone: string,
-  rolloverHour: number
+  rolloverHour: number,
 ): string {
   const shifted = ts - rolloverHour * 3600 * 1000;
   const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -114,7 +130,7 @@ export function isoWeekKey(dayKey: string): string {
     1 +
     Math.round(
       (date.getTime() - firstThursday.getTime()) / 86400000 / 7 -
-        ((firstThursday.getUTCDay() + 6) % 7) / 7
+        ((firstThursday.getUTCDay() + 6) % 7) / 7,
     );
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
