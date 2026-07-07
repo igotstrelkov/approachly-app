@@ -22,6 +22,7 @@ import { ReflectionsScreen } from "./screens/ReflectionsScreen";
 import { GoalScreen } from "./screens/GoalScreen";
 import { ReminderScreen } from "./screens/ReminderScreen";
 import { FeedbackScreen } from "./screens/FeedbackScreen";
+import { EssentialsScreen } from "./screens/EssentialsScreen";
 
 export default function ApproachlyApp(props: {
   startScreen?: "Home" | "Onboarding";
@@ -113,6 +114,9 @@ export default function ApproachlyApp(props: {
 
         {/* ============ FEEDBACK ============ */}
         {screen === "feedback" && <FeedbackScreen />}
+
+        {/* ============ ESSENTIALS (The Five) ============ */}
+        {screen === "essentials" && <EssentialsScreen />}
 
         {/* ============ ONBOARDING / QUIZ ============ */}
         {screen === "quiz" && <QuizScreen />}

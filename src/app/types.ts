@@ -10,7 +10,8 @@ export type Screen =
   | "reflections"
   | "goal"
   | "reminder"
-  | "feedback";
+  | "feedback"
+  | "essentials";
 export type Vibe = "GREAT_SET" | "STILL_A_REP" | null;
 
 // Onboarding step order — the single source of truth for the quiz sequence.

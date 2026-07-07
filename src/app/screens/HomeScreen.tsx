@@ -537,7 +537,7 @@ export function HomeScreen() {
                 color: "var(--bone)",
               }}
             >
-              Hype me up
+              Beat the freeze
             </div>
             <div
               style={{
@@ -550,6 +550,66 @@ export function HomeScreen() {
             </div>
           </div>
           <span style={{ color: "var(--ember)", fontSize: 22 }}>›</span>
+        </button>
+        <button
+          onClick={() => nav("essentials")}
+          style={{
+            width: "100%",
+            cursor: "pointer",
+            background: "none",
+            border: "1px solid var(--slate)",
+            borderRadius: 20,
+            padding: "16px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              background: "var(--slate)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: DISPLAY,
+                fontSize: 22,
+                color: "var(--bone)",
+                lineHeight: 1,
+              }}
+            >
+              5
+            </span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 15,
+                color: "var(--bone)",
+              }}
+            >
+              The five
+            </div>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--ash)",
+                marginTop: 1,
+              }}
+            >
+              The mindset that carries every rep.
+            </div>
+          </div>
+          <span style={{ color: "var(--ash)", fontSize: 20 }}>›</span>
         </button>
       </div>
 
