@@ -101,10 +101,16 @@ export function useAppState({
     api.approaches.dashboard,
     isSignedIn ? { timezone } : "skip",
   );
+  // Bounded recent reps for the Reflections screen readback (see approaches.recent).
+  const recentReps = useQuery(
+    api.approaches.recent,
+    isSignedIn ? { limit: 30 } : "skip",
+  );
   const logRepMut = useMutation(api.approaches.logRep);
   const completeOnboardingMut = useMutation(api.users.completeOnboarding);
   const setWeeklyGoalMut = useMutation(api.users.setWeeklyGoal);
   const markNumberMut = useMutation(api.approaches.markNumber);
+  const editNoteMut = useMutation(api.approaches.editNote);
   const pushStatus = useQuery(api.push.getStatus, isSignedIn ? {} : "skip");
   const saveSubMut = useMutation(api.push.saveSubscription);
   const removeSubMut = useMutation(api.push.removeSubscription);
@@ -112,7 +118,6 @@ export function useAppState({
   const setReminderFreqMut = useMutation(api.push.setReminderFreq);
   const submitFeedbackMut = useMutation(api.feedback.submit);
   const [pushBusy, setPushBusy] = useState(false);
-  const [goalEditing, setGoalEditing] = useState(false);
   // iOS delivers web-push only to a home-screen-installed PWA, not a Safari tab.
   // Detect so the reminder UI can tell iPhone users to install first.
   const [isIOS] = useState(() =>
@@ -175,6 +180,22 @@ export function useAppState({
     (screen === "quiz" || screen === "landing")
   ) {
     setScreen("home");
+  }
+
+  // Signed in but no user doc — e.g. signed up via the Sign-in→Sign-up toggle,
+  // skipping onboarding. Route into the quiz so we create the doc and fire the
+  // CompleteRegistration conversion event. me === null means "loaded, no doc";
+  // undefined means still loading (gated by !booting). An onboarded user's `me`
+  // is always their doc, never null, so this can't hijack a real session.
+  if (
+    !booting &&
+    isSignedIn &&
+    me === null &&
+    !pendingPlan &&
+    !replaying &&
+    screen !== "quiz"
+  ) {
+    setScreen("quiz");
   }
 
   // After sign-up, check if returning user already onboarded mid-quiz.
@@ -713,8 +734,6 @@ export function useAppState({
     setQuiz,
     pushBusy,
     setPushBusy,
-    goalEditing,
-    setGoalEditing,
     pendingPlan,
     setPendingPlan,
     replaying,
@@ -724,11 +743,13 @@ export function useAppState({
     timezone,
     me,
     dash,
+    recentReps,
     pushStatus,
     logRepMut,
     completeOnboardingMut,
     setWeeklyGoalMut,
     markNumberMut,
+    editNoteMut,
     saveSubMut,
     removeSubMut,
     isSignedIn,

@@ -18,6 +18,10 @@ import { HypeScreen } from "./screens/HypeScreen";
 import { LandingScreen } from "./screens/LandingScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { QuizScreen } from "./screens/QuizScreen";
+import { ReflectionsScreen } from "./screens/ReflectionsScreen";
+import { GoalScreen } from "./screens/GoalScreen";
+import { ReminderScreen } from "./screens/ReminderScreen";
+import { FeedbackScreen } from "./screens/FeedbackScreen";
 
 export default function ApproachlyApp(props: {
   startScreen?: "Home" | "Onboarding";
@@ -97,6 +101,18 @@ export default function ApproachlyApp(props: {
 
         {/* ============ YOU ============ */}
         {screen === "you" && <YouScreen />}
+
+        {/* ============ REFLECTIONS ============ */}
+        {screen === "reflections" && <ReflectionsScreen />}
+
+        {/* ============ GOAL ============ */}
+        {screen === "goal" && <GoalScreen />}
+
+        {/* ============ REMINDER ============ */}
+        {screen === "reminder" && <ReminderScreen />}
+
+        {/* ============ FEEDBACK ============ */}
+        {screen === "feedback" && <FeedbackScreen />}
 
         {/* ============ ONBOARDING / QUIZ ============ */}
         {screen === "quiz" && <QuizScreen />}

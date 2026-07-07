@@ -150,6 +150,23 @@ export const markNumber = mutation({
   },
 });
 
+/**
+ * Edit the reflection note on one of the user's own approaches. Note already
+ * lives on the approach doc (v.optional(v.string())) — this only patches text,
+ * no schema change, no counters touched. Empty text clears the note.
+ */
+export const editNote = mutation({
+  args: { approachId: v.id("approaches"), note: v.string() },
+  handler: async (ctx, { approachId, note }) => {
+    const user = await meOrThrow(ctx);
+    if (!user) throw new Error("Not authenticated");
+    const approach = await ctx.db.get(approachId);
+    if (!approach || approach.userId !== user._id) throw new Error("Not found");
+    const trimmed = note.trim();
+    await ctx.db.patch(approachId, { note: trimmed || undefined });
+  },
+});
+
 /** Undo/delete the most recent rep, best-effort reversing counters (PRD §18). */
 export const undoLast = mutation({
   args: {},

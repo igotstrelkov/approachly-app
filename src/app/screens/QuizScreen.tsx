@@ -855,7 +855,7 @@ export function QuizScreen() {
                     style={{
                       fontFamily: DISPLAY,
                       fontSize: 44,
-                      color: "var(--ash)",
+                      color: "var(--bone)",
                       lineHeight: 0.9,
                     }}
                   >
