@@ -115,7 +115,7 @@ export default function ApproachlyApp(props: {
         {/* ============ FEEDBACK ============ */}
         {screen === "feedback" && <FeedbackScreen />}
 
-        {/* ============ ESSENTIALS (The Five) ============ */}
+        {/* ============ ESSENTIALS (The Playbook) ============ */}
         {screen === "essentials" && <EssentialsScreen />}
 
         {/* ============ ONBOARDING / QUIZ ============ */}

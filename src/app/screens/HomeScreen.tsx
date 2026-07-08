@@ -526,7 +526,9 @@ export function HomeScreen() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M13 2 L4 14 H12 L11 22 L20 10 H12 Z" />
+              <circle cx="12" cy="12" r="2.5" fill="var(--ember)" stroke="none" />
+              <circle cx="12" cy="12" r="6.5" opacity="0.65" />
+              <circle cx="12" cy="12" r="10.5" opacity="0.35" />
             </svg>
           </div>
           <div style={{ flex: 1 }}>
@@ -578,16 +580,23 @@ export function HomeScreen() {
               flexShrink: 0,
             }}
           >
-            <span
-              style={{
-                fontFamily: DISPLAY,
-                fontSize: 22,
-                color: "var(--bone)",
-                lineHeight: 1,
-              }}
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--ash)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              5
-            </span>
+              <line x1="9" y1="6" x2="20" y2="6" />
+              <line x1="9" y1="12" x2="20" y2="12" />
+              <line x1="9" y1="18" x2="20" y2="18" />
+              <line x1="4" y1="6" x2="4" y2="6" />
+              <line x1="4" y1="12" x2="4" y2="12" />
+              <line x1="4" y1="18" x2="4" y2="18" />
+            </svg>
           </div>
           <div style={{ flex: 1 }}>
             <div
@@ -597,7 +606,7 @@ export function HomeScreen() {
                 color: "var(--bone)",
               }}
             >
-              The five
+              The playbook
             </div>
             <div
               style={{
@@ -606,7 +615,7 @@ export function HomeScreen() {
                 marginTop: 1,
               }}
             >
-              The mindset that carries every rep.
+              Every approach, first look to clean exit.
             </div>
           </div>
           <span style={{ color: "var(--ash)", fontSize: 20 }}>›</span>

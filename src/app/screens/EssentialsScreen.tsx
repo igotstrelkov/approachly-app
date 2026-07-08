@@ -5,43 +5,45 @@ import { DISPLAY, GO_GRAD, iconBtn, MONO } from "../theme";
 
 const FIVE: { h: string; beats: string[] }[] = [
   {
-    h: "Move on five",
+    h: "The 5-Second Rule",
     beats: [
-      "The moment you notice her, you've got about five seconds before your head takes over.",
-      "Wait longer and the overthinking brain kicks in — inventing scenarios, weighing odds, freezing you in place. That's the enemy. Not her, not the moment.",
-      "So don't negotiate with it. Count down, and let your feet start moving before the fear finishes its sentence.",
+      "The moment you see her, you have exactly five seconds to move.",
+      "If you hesitate longer, your logical brain will kick in, create fake scenarios, and paralyze you with overthinking.",
+      "Kill the hesitation, lock your eyes on the target, and immediately step into her space.",
     ],
   },
   {
-    h: "Stand easy",
+    h: "Lead with Absolute Body Language",
     beats: [
-      "Your body settles before your words do — and it settles you, not just her.",
-      "Shoulders down, stand tall, unhurried. Meet her eyes and hold a beat — warm, not a staring contest.",
-      "A nervous posture feeds the nerves; an easy one quiets them. You're not performing anything — you're just not rushing.",
+      "Before you even open your mouth, your posture has already spoken for you.",
+      "Keep your shoulders back, stand tall, and maintain unbreakable eye contact.",
+      "A slouching, nervous posture instantly screams low status. Walk in with the unshakeable presence of a man who belongs in that room.",
     ],
   },
   {
-    h: "Say the real thing",
+    h: "Drop the Cringe Pick-Up Lines",
     beats: [
-      "No scripts. No lines you copied off the internet.",
-      "People clock a rehearsed bit instantly, and it reads like you're hiding. Honest is more disarming anyway.",
-      "Keep it simple, direct, true: “Hey — this is random, but I saw you and had to say hi.” That's the whole move.",
+      "Never use scripted, cheesy lines you found on the internet.",
+      "High-value women spot artificial game from a mile away.",
+      "Keep your opening simple, direct, and completely honest.",
+      "A confident, masculine “Hey, I saw you standing here and I had to come over and meet you” works 100% better.",
     ],
   },
   {
-    h: "Walk in unattached",
+    h: "Be Completely Detached from the Outcome",
     beats: [
-      "Most men freeze because they're scared of the “no.” So take its power away — walk over wanting nothing.",
-      "If she's got a boyfriend or she's just not feeling it: smile, wish her a good one, and go. No sting to nurse.",
-      "You didn't lose. You did the rep — and the rep was always the win.",
+      "The reason most men freeze is because they are terrified of rejection.",
+      "You must enter the approach with zero expectations.",
+      "If she has a boyfriend or isn't interested, you simply smile, wish her a good day, and walk away with your head high.",
+      "You don't lose—you either win or you build mental toughness.",
     ],
   },
   {
-    h: "Leave it clean",
+    h: "Clear Execution & The Clean Exit",
     beats: [
-      "You don't have to fill thirty minutes. A short, warm exchange is a complete rep.",
-      "When it's found its natural end, be straight about it: if it felt mutual, ask once — “I'd love to keep talking, can I get your number?” No pressure, no angle.",
-      "Then go, warm. Whatever she says, you already won the second you walked over.",
+      "Do not linger around making awkward small talk for thirty minutes.",
+      "Keep the initial interaction short, high-energy, and impactful. Once you establish a strong vibe, state your intent clearly, exchange contact information, and make a clean exit.",
+      "Leave her wanting to know more about you.",
     ],
   },
 ];
