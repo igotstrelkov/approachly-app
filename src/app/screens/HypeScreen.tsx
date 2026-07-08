@@ -143,7 +143,7 @@ export function HypeScreen() {
               When you land it, keep it simple:{" "}
               <span style={{ color: "var(--bone)" }}>
                 &ldquo;Hey, I saw you standing here and I had to come over and
-                meet you hi.&rdquo;
+                meet you.&rdquo;
               </span>
             </div>
           </div>
