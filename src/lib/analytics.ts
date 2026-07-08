@@ -25,14 +25,22 @@ function plausible(event: string, params?: Params) {
   }
 }
 
+// Suppress automation/headless traffic (Playwright, crawlers, bots) so it never
+// pollutes conversion data. navigator.webdriver is true under browser automation.
+function suppressed() {
+  return typeof navigator !== "undefined" && navigator.webdriver === true;
+}
+
 /** Standard Meta event (reserved name, e.g. "CompleteRegistration") + Plausible goal. */
 export function track(event: string, params?: Params) {
+  if (suppressed()) return;
   meta("track", event, params);
   plausible(event, params);
 }
 
 /** Custom Meta event (any name, e.g. "RepLogged") + Plausible goal. */
 export function trackCustom(event: string, params?: Params) {
+  if (suppressed()) return;
   meta("trackCustom", event, params);
   plausible(event, params);
 }
