@@ -25,16 +25,44 @@ type Recipient = {
 // a miss, never a quota. Rotated by day so it doesn't go stale. (See the
 // notification voice guidelines: one small, safe hello; showing up is the win.)
 const DAILY_LINES = [
-  "One hello today — that's the whole mission.",
-  "One rep today. Doesn't matter how it goes; showing up is the win.",
-  "If you get a moment out there today, say hi to someone. One's enough.",
-  "Your line moves one rep at a time. Ready when you are.",
-  "One small rep today. No rush.",
+  "One hello out there today. However it goes, that's the win.",
+  "See someone today? A simple hi is a full rep.",
+  "No pressure — just one small hello today if the moment's there.",
+  "Your fear falls one rep at a time. Today's a chance for one.",
+  "Say hi to one person today. That's the whole thing.",
+  "Ready when you are — one rep, whenever it feels right.",
+  "A single hello today keeps things moving. Win or awkward, it counts.",
+  "If you catch a moment today, walk over and say hi. One's plenty.",
+  "Today's rep is just showing up. Nothing to prove.",
 ];
-function dailyLine(key: string) {
+// Stable per-key rotation: same day/week → same line, but varied across keys.
+function hashKey(key: string) {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
-  return DAILY_LINES[Math.abs(h) % DAILY_LINES.length];
+  return Math.abs(h);
+}
+function dailyLine(key: string) {
+  return DAILY_LINES[hashKey(key) % DAILY_LINES.length];
+}
+
+// Weekly lines — same invitational voice, split by how close the week is (one
+// more vs a couple). Never a quota; `remaining` only nudges singular vs plural
+// tone. Rotated by week so it stays fresh.
+const WEEKLY_CLOSE = [
+  "One hello this week keeps your line moving. Whenever you're ready.",
+  "Just one rep this week — no rush on the day.",
+  "A single hello this week and you're rolling. On your time.",
+  "One more moment out there this week, whenever it feels right.",
+];
+const WEEKLY_SOME = [
+  "A rep or two this week keeps things going. One at a time, no pressure.",
+  "A couple of hellos this week, whenever they come. No rush.",
+  "Nothing to prove this week — just a rep or two when the moment's there.",
+  "A few small hellos this week keep the fear falling. On your terms.",
+];
+function weeklyLine(key: string, remaining: number) {
+  const pool = remaining <= 1 ? WEEKLY_CLOSE : WEEKLY_SOME;
+  return pool[hashKey(key) % pool.length];
 }
 
 export const sendDueReminders = internalAction({
@@ -59,9 +87,7 @@ export const sendDueReminders = internalAction({
     for (const r of due) {
       const body =
         r.mode === "weekly"
-          ? r.remaining <= 1
-            ? "One hello this week keeps your line moving. Whenever you're ready."
-            : "A rep or two this week keeps things going. One at a time, no pressure."
+          ? weeklyLine(r.weekKey, r.remaining)
           : dailyLine(r.dayKey);
       const payload = JSON.stringify({ title: "Couragely", body, url: "/" });
       try {
