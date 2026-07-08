@@ -435,8 +435,8 @@ export function HomeScreen() {
               <span style={{ color: "var(--ash)" }}>·</span>
               <span style={{ color: "var(--ash)" }}>
                 {user.repsToday === 1
-                  ? "you showed up"
-                  : `${user.repsToday} reps banked`}{" "}
+                  ? "you showed up today"
+                  : `${user.repsToday} reps banked today`}{" "}
                 <span style={{ color: "var(--ash)" }}>✓</span>
               </span>
             </div>
@@ -526,7 +526,13 @@ export function HomeScreen() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <circle cx="12" cy="12" r="2.5" fill="var(--ember)" stroke="none" />
+              <circle
+                cx="12"
+                cy="12"
+                r="2.5"
+                fill="var(--ember)"
+                stroke="none"
+              />
               <circle cx="12" cy="12" r="6.5" opacity="0.65" />
               <circle cx="12" cy="12" r="10.5" opacity="0.35" />
             </svg>
