@@ -788,6 +788,17 @@ export function HomeScreen() {
                   ),
                 )}
               </div>
+              {/* Calm orientation, not a countdown: names when the week rolls
+                  over without manufacturing deadline pressure. */}
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--ashDim)",
+                  marginTop: 8,
+                }}
+              >
+                New week starts Monday
+              </div>
               {/* Streak — weekly, so it lives with the goal */}
               <div
                 style={{
