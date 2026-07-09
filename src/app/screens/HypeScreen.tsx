@@ -140,7 +140,7 @@ export function HypeScreen() {
                 lineHeight: 1.55,
               }}
             >
-              When you land it, keep it simple:{" "}
+              Keep it simple <br />
               <span style={{ color: "var(--bone)" }}>
                 &ldquo;Hey, I saw you standing here and I had to come over and
                 meet you.&rdquo;
