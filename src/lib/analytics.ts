@@ -44,3 +44,19 @@ export function trackCustom(event: string, params?: Params) {
   meta("trackCustom", event, params);
   plausible(event, params);
 }
+
+/**
+ * Meta Advanced Matching — attach the signed-in user's email to the pixel so
+ * events match to a person (better attribution + higher event match quality).
+ * The pixel SHA-256-hashes `em` itself before sending; we pass the raw value.
+ * Re-calling init with the same id just updates the matching data (no extra
+ * PageView). Pixel-only — Plausible is cookieless and does no PII matching.
+ */
+export function identify(email?: string | null) {
+  if (suppressed() || !email) return;
+  const id = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+  if (!id) return;
+  if (typeof window !== "undefined" && typeof window.fbq === "function") {
+    window.fbq("init", id, { em: email });
+  }
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { subscribeThisDevice, unsubscribeThisDevice } from "@/lib/push";
-import { track, trackCustom } from "@/lib/analytics";
+import { identify, track, trackCustom } from "@/lib/analytics";
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -222,6 +222,13 @@ export function useAppState({
       .catch(() => {});
   }, [isSignedIn, me, pendingPlan, completeOnboardingMut]);
 
+  // Meta Advanced Matching: once the Clerk email is known, attach it to the pixel
+  // so the sign-up conversion and later events match to a person (better attribution).
+  const email = clerkUser?.primaryEmailAddress?.emailAddress;
+  useEffect(() => {
+    identify(email);
+  }, [email]);
+
   // Derive the mock-shaped `user` + `trend` from the dashboard so the screens below stay unchanged.
   const user = {
     totalXp: dash?.user.totalXp ?? 0,
@@ -267,6 +274,7 @@ export function useAppState({
 
   // hype
   const startHype = () => {
+    trackCustom("HypeStarted");
     setHypeStep("primer");
     setHypeCount(3);
     nav("hype");
@@ -418,6 +426,7 @@ export function useAppState({
       modeTier: res.modeTier,
       total: res.newTotal,
       leveledUp: res.leveledUp,
+      hasNote: !!draft.note.trim(),
     });
     if (res.newTotal === 1) trackCustom("FirstRep", { xp: res.xpAwarded });
     const mode = MODES[res.modeTier - 1];
@@ -506,6 +515,9 @@ export function useAppState({
         .catch(() => showToast("Something went wrong — try again."));
     } else {
       // Invested user finishes the quiz, then signs up; the effect above persists it.
+      // Meta standard "Lead" — completed the quiz and hit the sign-up wall (high
+      // intent, ad-optimizable). Bridges the OnboardingStep → CompleteRegistration gap.
+      track("Lead");
       setPendingPlan(plan);
       openSignUp();
     }
@@ -565,6 +577,9 @@ export function useAppState({
           mode === "daily" ? "Daily reminders on." : "Weekly reminders on.",
         );
       }
+      // Fires only on a successful change (skips the iOS-install / no-VAPID
+      // early returns). Push opt-in is the key retention lever — track adoption.
+      trackCustom("ReminderSet", { mode });
     } catch (e) {
       const msg = (e as Error)?.message;
       showToast(
