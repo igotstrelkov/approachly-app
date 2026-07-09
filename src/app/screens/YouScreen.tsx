@@ -121,7 +121,7 @@ export function YouScreen() {
               color: "var(--ash)",
             }}
           >
-            Level {level} · {user.totalApproaches} approach
+            Level {level}
             {user.totalApproaches === 1 ? "" : "es"}
           </div>
           {clerkUser?.primaryEmailAddress?.emailAddress && (

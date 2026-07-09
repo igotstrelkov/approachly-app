@@ -37,7 +37,8 @@ function BreathGuide() {
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          border: "1.5px solid rgba(255,178,62,.30)",
+          border: "2px solid rgba(255,178,62,.55)",
+          boxShadow: "0 0 44px -6px rgba(255,178,62,.4)",
         }}
       >
         <div
@@ -46,7 +47,8 @@ function BreathGuide() {
             height: 150,
             borderRadius: "50%",
             background:
-              "radial-gradient(circle at 50% 40%, rgba(255,178,62,.34), rgba(255,178,62,.08))",
+              "radial-gradient(circle at 50% 40%, rgba(255,178,62,.62), rgba(255,178,62,.16))",
+            boxShadow: "0 0 36px -4px rgba(255,178,62,.55)",
             transform: `scale(${step.scale})`,
             transition: `transform ${step.ms}ms ease-in-out`,
           }}
@@ -55,9 +57,10 @@ function BreathGuide() {
       <div
         style={{
           fontFamily: MONO,
-          fontSize: 12.5,
-          letterSpacing: 2,
-          color: "var(--ash)",
+          fontSize: 15,
+          letterSpacing: 3,
+          fontWeight: 700,
+          color: "var(--amber)",
           textTransform: "uppercase",
         }}
       >
