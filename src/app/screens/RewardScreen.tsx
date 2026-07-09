@@ -28,12 +28,23 @@ export function RewardScreen() {
     markNumberMut,
     showToast,
     nav,
+    user,
+    setWeeklyGoalMut,
   } = useApp();
   const { width, height } = useWindowSize();
+  const [goalRaised, setGoalRaised] = useState(false);
   if (!reward) return null;
   // Rough one → the calmer "acknowledgment" accent (amber). Same mechanics/XP,
   // quieter tone: no confetti, no celebratory pills, supportive copy.
   const heroColor = reward.rough ? "#e0a030" : reward.mode.color;
+  // Level-up goal offer: at a rank-up, gently offer a +1 bump to the weekly goal —
+  // opt-in (never auto), a single step, capped by the rank band, skipped on rough
+  // reps, and not shown if the self-set goal is already at/above the band ceiling.
+  const goalCeil =
+    reward.newLevel >= 15 ? 6 : reward.newLevel >= 10 ? 5 : 4;
+  const suggestedGoal = user.weeklyGoal + 1;
+  const offerRaise =
+    reward.rankUp && !reward.rough && user.weeklyGoal < goalCeil;
   return (
     <div
       style={{
@@ -345,6 +356,84 @@ export function RewardScreen() {
           <span>📱</span>
           {numberSaved ? "Contact saved ✓" : "Got their contact?"}
         </button>
+
+        {offerRaise && (
+          <div
+            style={{
+              marginTop: 18,
+              width: "100%",
+              maxWidth: 320,
+              background: "var(--charcoal)",
+              border: "1px solid var(--slate)",
+              borderRadius: 16,
+              padding: "14px 16px",
+              textAlign: "center",
+              animation: "aFadeUp .5s .42s both",
+            }}
+          >
+            {goalRaised ? (
+              <div
+                style={{ fontSize: 13.5, fontWeight: 700, color: "var(--go)" }}
+              >
+                Weekly goal set to {suggestedGoal} ✓
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "var(--bone)",
+                  }}
+                >
+                  {reward.newRank} now — ready for a bit more?
+                </div>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--ash)",
+                    marginTop: 3,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Only if it feels right — nudge your weekly goal to{" "}
+                  {suggestedGoal}. You can always change it back.
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await setWeeklyGoalMut({ weeklyGoal: suggestedGoal });
+                      trackCustom("GoalRaised", {
+                        from: user.weeklyGoal,
+                        to: suggestedGoal,
+                        level: reward.newLevel,
+                      });
+                      setGoalRaised(true);
+                      showToast(`Weekly goal raised to ${suggestedGoal}.`);
+                    } catch {
+                      showToast("Couldn't update goal.");
+                    }
+                  }}
+                  style={{
+                    marginTop: 12,
+                    width: "100%",
+                    background: "rgba(52,209,126,.12)",
+                    border: "1px solid var(--go)",
+                    borderRadius: 12,
+                    padding: "10px 0",
+                    color: "var(--go)",
+                    fontFamily: MONO,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Raise to {suggestedGoal}/week
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         <div style={{ flex: 1 }} />
 
