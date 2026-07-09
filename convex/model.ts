@@ -135,8 +135,19 @@ export function isoWeekKey(dayKey: string): string {
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** Comparable ordinal for a week key (for streak math). Year boundaries are approximate. */
+/**
+ * Weeks since the Unix epoch for an ISO week key — a true monotonic count, so
+ * consecutive ISO weeks always differ by exactly 1, including across year
+ * boundaries (used for streak-consecutiveness math). Only differences are used,
+ * so nothing stores this value; changing the formula needs no migration.
+ */
 export function weekOrdinal(weekKey: string): number {
   const [y, w] = weekKey.split("-W").map(Number);
-  return y * 53 + w;
+  const WEEK_MS = 7 * 86400000;
+  // ISO week 1 is the week containing Jan 4; anchor to that week's Monday (UTC).
+  const jan4 = Date.UTC(y, 0, 4);
+  const jan4Dow = (new Date(jan4).getUTCDay() + 6) % 7; // Mon=0 … Sun=6
+  const week1Monday = jan4 - jan4Dow * 86400000;
+  const monday = week1Monday + (w - 1) * WEEK_MS;
+  return Math.round(monday / WEEK_MS);
 }
