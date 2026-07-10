@@ -1,24 +1,30 @@
 "use client";
 import { useState } from "react";
 import { useApp } from "../AppContext";
-import { DISPLAY, GO_GRAD, iconBtn, MONO } from "../theme";
+import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
-function stamp(ts: number) {
-  const day = Math.floor((Date.now() - ts) / 86_400_000);
-  const label =
-    day <= 0
-      ? "Today"
-      : day === 1
-        ? "Yesterday"
-        : new Date(ts).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          });
-  const time = new Date(ts).toLocaleTimeString(undefined, {
+// Calendar-day heading (not a rolling 24h window) so reps bucket the way a
+// person reads a journal: Today / Yesterday / "Mar 3" (+ year if not this one).
+function dayHeading(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const startOf = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((startOf(now) - startOf(d)) / 86_400_000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
+function timeOf(ts: number): string {
+  return new Date(ts).toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   });
-  return `${label} · ${time}`;
 }
 
 export function ReflectionsScreen() {
@@ -33,6 +39,206 @@ export function ReflectionsScreen() {
   const startEdit = (id: string, note: string) => {
     setEditingId(id);
     setText(note);
+  };
+
+  // Bucket the sorted reps into consecutive calendar-day groups for headers.
+  const groups: { key: string; reps: typeof timeline }[] = [];
+  for (const r of timeline) {
+    const key = dayHeading(r.timestamp);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.reps.push(r);
+    else groups.push({ key, reps: [r] });
+  }
+
+  const renderRep = (r: (typeof timeline)[number]) => {
+    const editing = editingId === r._id;
+    const good = r.vibe === "GREAT_SET";
+    const outcomeColor = good ? "var(--go)" : "var(--amber)";
+    const hasBody = editing || !!r.note?.trim();
+    return (
+      <div
+        key={r._id}
+        style={{ padding: "15px 0", borderBottom: "1px solid var(--slate)" }}
+      >
+        {/* Outcome + time + note affordance */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            marginBottom: 7,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              flexShrink: 0,
+              borderRadius: "50%",
+              background: outcomeColor,
+            }}
+          />
+          <span style={{ fontFamily: MONO, fontSize: 11.5, flex: 1 }}>
+            <span style={{ color: outcomeColor, fontWeight: 700 }}>
+              {good ? "Felt good" : "Felt rough"}
+            </span>
+            <span style={{ color: "var(--ash)" }}> · {timeOf(r.timestamp)}</span>
+          </span>
+          {!editing && (
+            <button
+              onClick={() => startEdit(r._id, r.note ?? "")}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--ash)",
+                fontFamily: MONO,
+                fontSize: 12,
+                padding: "2px 4px",
+              }}
+            >
+              {r.note?.trim() ? "Edit" : "+ Note"}
+            </button>
+          )}
+        </div>
+
+        {/* Nerves walked in with + whether they breathed first */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            marginBottom: hasBody ? 10 : 0,
+            paddingLeft: 17,
+          }}
+        >
+          <span
+            style={{ fontFamily: MONO, fontSize: 11.5, color: "var(--ash)" }}
+          >
+            Nerves {r.anxietyBefore}/10
+          </span>
+          {r.beatTheFreezeUsed && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontFamily: MONO,
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: "var(--amber)",
+                background: "rgba(255,178,62,.12)",
+                border: "1px solid rgba(255,178,62,.28)",
+                borderRadius: 999,
+                padding: "2px 9px",
+              }}
+            >
+              ⚡ Breathed first
+            </span>
+          )}
+        </div>
+
+        {editing ? (
+          <div style={{ paddingLeft: 17 }}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = `${el.scrollHeight}px`;
+              }}
+              rows={3}
+              autoFocus
+              style={{
+                width: "100%",
+                background: "var(--slate)",
+                border: "1px solid var(--slateHi)",
+                borderRadius: 14,
+                padding: "13px 15px",
+                color: "var(--bone)",
+                fontSize: 14,
+                fontFamily: "inherit",
+                lineHeight: 1.5,
+                resize: "none",
+                minHeight: 78,
+                overflow: "hidden",
+                boxSizing: "border-box",
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button
+                onClick={async () => {
+                  if (saving) return;
+                  setSaving(true);
+                  try {
+                    await editNoteMut({
+                      approachId: r._id,
+                      note: text.trim(),
+                    });
+                    setEditingId(null);
+                    showToast(
+                      text.trim() ? "Reflection saved." : "Reflection cleared.",
+                    );
+                  } catch {
+                    showToast("Couldn't save — try again.");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderRadius: 12,
+                  padding: 12,
+                  background: GO_GRAD,
+                  color: "#07130C",
+                  fontFamily: DISPLAY,
+                  fontSize: 15,
+                  textTransform: "uppercase",
+                  cursor: saving ? "default" : "pointer",
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => setEditingId(null)}
+                style={{
+                  border: "1px solid var(--slate)",
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  background: "none",
+                  color: "var(--ash)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : r.note?.trim() ? (
+          <div
+            style={{
+              fontSize: 14,
+              color: "var(--bone)",
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere",
+              paddingLeft: 17,
+            }}
+          >
+            {r.note}
+          </div>
+        ) : null}
+      </div>
+    );
   };
 
   return (
@@ -77,159 +283,21 @@ export function ReflectionsScreen() {
           you show up for, and how far the fear has dropped.
         </div>
       ) : (
-        timeline.map((r) => {
-          const editing = editingId === r._id;
-          return (
+        groups.map((g, gi) => (
+          <div key={g.key}>
             <div
-              key={r._id}
               style={{
-                padding: "16px 0",
-                borderBottom: "1px solid var(--slate)",
+                ...eyebrow("var(--ashDim)"),
+                letterSpacing: 2,
+                marginTop: gi === 0 ? 4 : 24,
+                marginBottom: 4,
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 8,
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background:
-                      r.vibe === "GREAT_SET" ? "var(--go)" : "var(--amber)",
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 11.5,
-                    color: "var(--ash)",
-                    flex: 1,
-                  }}
-                >
-                  {stamp(r.timestamp)} · Felt {r.anxietyBefore}/10 before
-                </span>
-                {!editing && (
-                  <button
-                    onClick={() => startEdit(r._id, r.note ?? "")}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--ash)",
-                      fontFamily: MONO,
-                      fontSize: 12,
-                      padding: "2px 4px",
-                    }}
-                  >
-                    {r.note?.trim() ? "Edit" : "+ Note"}
-                  </button>
-                )}
-              </div>
-
-              {editing ? (
-                <div>
-                  <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onInput={(e) => {
-                      const el = e.currentTarget;
-                      el.style.height = "auto";
-                      el.style.height = `${el.scrollHeight}px`;
-                    }}
-                    rows={3}
-                    autoFocus
-                    style={{
-                      width: "100%",
-                      background: "var(--slate)",
-                      border: "1px solid var(--slateHi)",
-                      borderRadius: 14,
-                      padding: "13px 15px",
-                      color: "var(--bone)",
-                      fontSize: 14,
-                      fontFamily: "inherit",
-                      lineHeight: 1.5,
-                      resize: "none",
-                      minHeight: 78,
-                      overflow: "hidden",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button
-                      onClick={async () => {
-                        if (saving) return;
-                        setSaving(true);
-                        try {
-                          await editNoteMut({
-                            approachId: r._id,
-                            note: text.trim(),
-                          });
-                          setEditingId(null);
-                          showToast(
-                            text.trim() ? "Reflection saved." : "Reflection cleared.",
-                          );
-                        } catch {
-                          showToast("Couldn't save — try again.");
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                      disabled={saving}
-                      style={{
-                        flex: 1,
-                        border: "none",
-                        borderRadius: 12,
-                        padding: 12,
-                        background: GO_GRAD,
-                        color: "#07130C",
-                        fontFamily: DISPLAY,
-                        fontSize: 15,
-                        textTransform: "uppercase",
-                        cursor: saving ? "default" : "pointer",
-                        opacity: saving ? 0.6 : 1,
-                      }}
-                    >
-                      {saving ? "Saving…" : "Save"}
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      style={{
-                        border: "1px solid var(--slate)",
-                        borderRadius: 12,
-                        padding: "12px 18px",
-                        background: "none",
-                        color: "var(--ash)",
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : r.note?.trim() ? (
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: "var(--bone)",
-                    lineHeight: 1.5,
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {r.note}
-                </div>
-              ) : null}
+              {g.key}
             </div>
-          );
-        })
+            {g.reps.map(renderRep)}
+          </div>
+        ))
       )}
     </div>
   );
