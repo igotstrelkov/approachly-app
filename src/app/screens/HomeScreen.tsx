@@ -1,5 +1,4 @@
 "use client";
-import { trackCustom } from "@/lib/analytics";
 import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
@@ -529,7 +528,7 @@ export function HomeScreen() {
               : "You walked over. Bank it."}
           </div>
         </button>
-        <button
+        {/* <button
           onClick={() => {
             trackCustom("PlaybookOpened");
             nav("essentials");
@@ -598,7 +597,7 @@ export function HomeScreen() {
             </div>
           </div>
           <span style={{ color: "var(--ash)", fontSize: 20 }}>›</span>
-        </button>
+        </button> */}
       </div>
 
       {isFresh && (
