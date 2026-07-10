@@ -413,7 +413,7 @@ export function HomeScreen() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                marginTop: 18,
+                marginTop: 12,
                 fontFamily: MONO,
                 fontSize: 12.5,
               }}
@@ -451,7 +451,7 @@ export function HomeScreen() {
           display: "flex",
           flexDirection: "column",
           gap: 12,
-          marginTop: 32,
+          marginTop: 40,
         }}
       >
         {/* Beat the Freeze — amber co-hero. Freezing happens BEFORE the approach,
