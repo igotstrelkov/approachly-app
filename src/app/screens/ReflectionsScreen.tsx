@@ -28,7 +28,7 @@ function timeOf(ts: number): string {
 }
 
 export function ReflectionsScreen() {
-  const { nav, recentReps, editNoteMut, showToast } = useApp();
+  const { nav, recentReps, editNoteMut, showToast, user } = useApp();
   // Full timeline — every rep you've shown up for, newest first (recentReps is
   // ordered desc, capped at the last 30). Notes appear inline where written.
   const timeline = recentReps ?? [];
@@ -266,9 +266,44 @@ export function ReflectionsScreen() {
       >
         Your reps
       </div>
-      <div style={{ fontSize: 13.5, color: "var(--ash)", marginBottom: 24 }}>
+      <div
+        style={{
+          fontSize: 13.5,
+          color: "var(--ash)",
+          marginBottom: user.freezesBeaten > 0 ? 16 : 24,
+        }}
+      >
         Every rep you&apos;ve shown up for — the nerves, and what you wrote.
       </div>
+
+      {/* Lifetime freeze tally — the home for the running count (the per-row ⚡
+          only marks freezes that led to a logged rep). Warm, never a streak. */}
+      {user.freezesBeaten > 0 && (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            background: "rgba(255,178,62,.10)",
+            border: "1px solid rgba(255,178,62,.22)",
+            borderRadius: 999,
+            padding: "7px 14px",
+            marginBottom: 24,
+          }}
+        >
+          <span style={{ fontSize: 14, lineHeight: 1 }}>🔥</span>
+          <span
+            style={{
+              fontFamily: MONO,
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--amber)",
+            }}
+          >
+            {user.freezesBeaten} freezes beaten
+          </span>
+        </div>
+      )}
 
       {timeline.length === 0 ? (
         <div
