@@ -29,6 +29,7 @@ export default defineSchema({
     totalApproaches: v.number(),
     greatSets: v.number(),
     gotNumbers: v.number(),
+    freezesBeaten: v.optional(v.number()), // times the ritual reached GO (courage, never a losable streak)
     peakModeN: v.optional(v.number()), // highest daily mode tier ever reached (milestones)
     activeDays: v.optional(v.number()), // orphaned counter from a reverted feature; tolerated so old docs validate
 
@@ -79,6 +80,7 @@ export default defineSchema({
     note: v.optional(v.string()),
     xpAwarded: v.number(),
     modeReached: v.number(), // daily mode tier reached with this rep
+    beatTheFreezeUsed: v.optional(v.boolean()), // logged via the Beat-the-Freeze ritual
   })
     .index("by_user", ["userId"])
     .index("by_user_week", ["userId", "weekKey"]),

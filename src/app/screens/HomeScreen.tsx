@@ -17,7 +17,7 @@ export function HomeScreen() {
     user,
     startHype,
     startLog,
-    levelPct,
+    freezePulse,
   } = useApp();
   return (
     <div
@@ -96,6 +96,7 @@ export function HomeScreen() {
         </button>
         <button
           onClick={() => nav("you")}
+          aria-label="Profile"
           style={{
             ...iconBtn,
             display: "flex",
@@ -390,7 +391,7 @@ export function HomeScreen() {
               >
                 {chart.chartNote}
               </div>
-              <div
+              {/* <div
                 style={{
                   fontSize: 12,
                   color: "var(--ash)",
@@ -399,7 +400,7 @@ export function HomeScreen() {
                 }}
               >
                 {chart.chartSubcaption}
-              </div>
+              </div> */}
             </>
           )}
 
@@ -454,8 +455,46 @@ export function HomeScreen() {
           marginTop: 32,
         }}
       >
+        {/* Beat the Freeze — amber co-hero. Freezing happens BEFORE the approach,
+            so it leads. Pulses until the ritual is opened for the day. */}
         <button
-          onClick={startLog}
+          onClick={startHype}
+          className={freezePulse ? "cg-freeze-pulse" : undefined}
+          style={{
+            width: "100%",
+            cursor: "pointer",
+            border: "none",
+            background: "linear-gradient(180deg,#FFC65E,var(--ember))",
+            color: "#2a1a05",
+            borderRadius: 22,
+            padding: "24px 20px",
+            boxShadow: "0 14px 40px -10px rgba(255,178,62,.5)",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: DISPLAY,
+              fontSize: 32,
+              textTransform: "uppercase",
+              lineHeight: 1,
+            }}
+          >
+            Beat the freeze
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              opacity: 0.75,
+              marginTop: 6,
+            }}
+          >
+            Frozen? One breath and go.
+          </div>
+        </button>
+        {/* Log a Rep — green co-hero. Logging happens AFTER, so it follows. */}
+        <button
+          onClick={() => startLog()}
           style={{
             width: "100%",
             cursor: "pointer",
@@ -489,76 +528,6 @@ export function HomeScreen() {
               ? "You walked over. This is the one."
               : "You walked over. Bank it."}
           </div>
-        </button>
-        <button
-          onClick={startHype}
-          style={{
-            width: "100%",
-            cursor: "pointer",
-            background: "var(--charcoal)",
-            border: "1.5px solid var(--ember)",
-            borderRadius: 20,
-            padding: "18px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            textAlign: "left",
-          }}
-        >
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              background: "rgba(255,178,62,.14)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--ember)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="2.5"
-                fill="var(--ember)"
-                stroke="none"
-              />
-              <circle cx="12" cy="12" r="6.5" opacity="0.65" />
-              <circle cx="12" cy="12" r="10.5" opacity="0.35" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: 16,
-                color: "var(--bone)",
-              }}
-            >
-              Beat the freeze
-            </div>
-            <div
-              style={{
-                fontSize: 12.5,
-                color: "var(--ash)",
-                marginTop: 1,
-              }}
-            >
-              One breath before you go.
-            </div>
-          </div>
-          <span style={{ color: "var(--ember)", fontSize: 22 }}>›</span>
         </button>
         <button
           onClick={() => {
@@ -824,47 +793,8 @@ export function HomeScreen() {
                 </span>
               </div>
             </div>
-            {/* GROUP 2 — LIFETIME (muted totals, recedes) */}
-            <div
-              style={{
-                ...eyebrow("var(--ash)"),
-                letterSpacing: 2,
-                marginTop: 24,
-                marginBottom: 2,
-              }}
-            >
-              Lifetime
-            </div>
-            {[
-              { l: "Total approaches", r: `${user.totalApproaches}` },
-              // Great sets: a quiet neutral stat, NOT a maximizable target
-              // (reps not results) — no arrow, no accent, no "& climbing".
-              { l: "Great sets", r: `${user.greatSets}` },
-            ].map((row) => (
-              <div
-                key={row.l}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "15px 0",
-                  borderBottom: "1px solid var(--slate)",
-                }}
-              >
-                <span style={{ fontSize: 14, color: "var(--ash)" }}>
-                  {row.l}
-                </span>
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 14,
-                    color: "var(--bone)",
-                  }}
-                >
-                  {row.r}
-                </span>
-              </div>
-            ))}
+            {/* Lifetime totals + earned stats now live on the Stats screen
+                (top-right chart button) — Home stays action-first. */}
           </div>
         </div>
       )}

@@ -23,7 +23,9 @@ function stamp(ts: number) {
 
 export function ReflectionsScreen() {
   const { nav, recentReps, editNoteMut, showToast } = useApp();
-  const reflections = (recentReps ?? []).filter((r) => r.note?.trim());
+  // Full timeline — every rep you've shown up for, newest first (recentReps is
+  // ordered desc, capped at the last 30). Notes appear inline where written.
+  const timeline = recentReps ?? [];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -56,13 +58,13 @@ export function ReflectionsScreen() {
           marginBottom: 6,
         }}
       >
-        Reflections
+        Your reps
       </div>
       <div style={{ fontSize: 13.5, color: "var(--ash)", marginBottom: 24 }}>
-        What you wrote, and the nerves you walked in with.
+        Every rep you&apos;ve shown up for — the nerves, and what you wrote.
       </div>
 
-      {reflections.length === 0 ? (
+      {timeline.length === 0 ? (
         <div
           style={{
             fontSize: 14,
@@ -71,12 +73,11 @@ export function ReflectionsScreen() {
             padding: "24px 0",
           }}
         >
-          Nothing here yet. After your next rep, jot a line in the reflection box
-          — it&apos;ll show up here so you can look back on how far the fear has
-          dropped.
+          No reps yet. Log your first one and it&apos;ll show up here — every one
+          you show up for, and how far the fear has dropped.
         </div>
       ) : (
-        reflections.map((r) => {
+        timeline.map((r) => {
           const editing = editingId === r._id;
           return (
             <div
@@ -126,7 +127,7 @@ export function ReflectionsScreen() {
                       padding: "2px 4px",
                     }}
                   >
-                    Edit
+                    {r.note?.trim() ? "Edit" : "+ Note"}
                   </button>
                 )}
               </div>
@@ -213,7 +214,7 @@ export function ReflectionsScreen() {
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : r.note?.trim() ? (
                 <div
                   style={{
                     fontSize: 14,
@@ -225,7 +226,7 @@ export function ReflectionsScreen() {
                 >
                   {r.note}
                 </div>
-              )}
+              ) : null}
             </div>
           );
         })

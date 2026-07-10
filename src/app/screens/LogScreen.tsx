@@ -6,11 +6,16 @@ import { DISPLAY, GO_GRAD, iconBtn } from "../theme";
 export function LogScreen() {
   const { nav, setDraft, draft, optStyle, setAnx, anxScale, logIt } = useApp();
   const canLog = !!draft.vibe && draft.anxiety >= 1;
-  const label = !draft.vibe
-    ? "Pick how it went ↑"
-    : draft.anxiety < 1
-      ? "Rate your nerves ↑"
-      : "Log it";
+  // Both the outcome AND the anxiety number are required (anxiety is the core KPI,
+  // so it starts unselected — no polluting default). Keep the label explicit.
+  const label =
+    !draft.vibe && draft.anxiety < 1
+      ? "Pick how it went & your anxiety"
+      : !draft.vibe
+        ? "Pick how it went ↑"
+        : draft.anxiety < 1
+          ? "Add your anxiety number ↑"
+          : "Log it";
   return (
     <div
       style={{

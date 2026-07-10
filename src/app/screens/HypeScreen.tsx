@@ -3,34 +3,75 @@ import { useEffect, useState } from "react";
 import { useApp } from "../AppContext";
 import { DISPLAY, eyebrow, GO_GRAD, iconBtn, MONO } from "../theme";
 
+// Box-breathing-lite, looping: inhale 4s → hold 2s → exhale 4s (10s/cycle).
+// The circle scales + a synced opacity pulse; the label paces it in real text.
 const BREATH = [
-  { label: "Breathe in", ms: 4000, scale: 1 },
-  { label: "Hold", ms: 1600, scale: 1 },
-  { label: "Breathe out", ms: 6000, scale: 0.58 },
-];
+  { key: "in", label: "Breathe in", ms: 4000 },
+  { key: "hold", label: "Hold", ms: 2000 },
+  { key: "out", label: "Breathe out", ms: 4000 },
+] as const;
 
-// Paced guided breath — the calm centerpiece of the primer. Owns its state so
-// it only runs while the primer is mounted (unmounts on countdown/go).
-function BreathGuide() {
+const buzz = (p: number) => {
+  try {
+    navigator.vibrate?.(p);
+  } catch {}
+};
+
+// Paced guided breath — the calm centerpiece of the primer. USER-PACED: it loops
+// forever and never advances the flow on its own; only the pinned button starts
+// the countdown. Owns its state so it only runs while the primer is mounted.
+function BreathGuide({ onCycle }: { onCycle?: (n: number) => void }) {
   const [i, setI] = useState(0);
+  const [reduced, setReduced] = useState(() => {
+    try {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch {
+      return false;
+    }
+  });
+
   useEffect(() => {
-    const t = setTimeout(
-      () => setI((p) => (p + 1) % BREATH.length),
-      BREATH[i].ms,
-    );
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const on = () => setReduced(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+
+  // Advance phases on a timer; count a full cycle each time the exhale (last
+  // phase) elapses. onCycle runs in the timeout callback — never inside the setI
+  // updater, which React executes during render (would setState mid-render).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setI((p) => (p + 1) % BREATH.length);
+      if (i === BREATH.length - 1) onCycle?.(1);
+    }, BREATH[i].ms);
     return () => clearTimeout(t);
+  }, [i, onCycle]);
+
+  // Short haptic at the start of each inhale and exhale (feature-detected).
+  useEffect(() => {
+    const k = BREATH[i].key;
+    if (k === "in" || k === "out") buzz(15);
   }, [i]);
-  const step = BREATH[i];
+
+  const phase = BREATH[i];
+  // Target the END state of the current phase so the transition animates over it.
+  const grown = phase.key === "in" || phase.key === "hold";
+  const dur = phase.key === "hold" ? 300 : phase.ms;
+  const scale = reduced ? 1 : grown ? 1 : 0.6;
+  const opacity = grown ? 1 : reduced ? 0.5 : 0.85;
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 18,
+        gap: 20,
       }}
     >
       <div
+        aria-hidden
         style={{
           width: 200,
           height: 200,
@@ -39,6 +80,10 @@ function BreathGuide() {
           placeItems: "center",
           border: "2px solid rgba(255,178,62,.55)",
           boxShadow: "0 0 44px -6px rgba(255,178,62,.4)",
+          transform: `scale(${scale})`,
+          opacity,
+          transition: `transform ${dur}ms ease-in-out, opacity ${dur}ms ease-in-out`,
+          willChange: "transform, opacity",
         }}
       >
         <div
@@ -49,12 +94,11 @@ function BreathGuide() {
             background:
               "radial-gradient(circle at 50% 40%, rgba(255,178,62,.62), rgba(255,178,62,.16))",
             boxShadow: "0 0 36px -4px rgba(255,178,62,.55)",
-            transform: `scale(${step.scale})`,
-            transition: `transform ${step.ms}ms ease-in-out`,
           }}
         />
       </div>
       <div
+        aria-live="polite"
         style={{
           fontFamily: MONO,
           fontSize: 15,
@@ -64,14 +108,19 @@ function BreathGuide() {
           textTransform: "uppercase",
         }}
       >
-        {step.label}
+        {phase.label}
       </div>
     </div>
   );
 }
 
 export function HypeScreen() {
-  const { nav, hypeStep, hypeWhy, hypeGo, hypeCount, startLog } = useApp();
+  const { nav, hypeStep, hypeGo, hypeCount, startLog, showToast } = useApp();
+  // Count breaths so a non-coercive "no rush" line can fade in after ~2 cycles.
+  // The primer block unmounts on countdown/go, so this resets naturally per visit.
+  const [breaths, setBreaths] = useState(0);
+  const showNoRush = breaths >= 2;
+
   return (
     <div
       style={{
@@ -112,12 +161,12 @@ export function HypeScreen() {
                 color: "var(--bone)",
                 textTransform: "uppercase",
                 lineHeight: 1,
-                marginBottom: 8,
+                marginBottom: 36,
               }}
             >
               The freeze is the only enemy.
             </div>
-            <div
+            {/* <div
               style={{
                 fontSize: 13.5,
                 color: "var(--ash)",
@@ -125,14 +174,14 @@ export function HypeScreen() {
                 maxWidth: 300,
               }}
             >
-              You&apos;re doing this for{" "}
+              You&apos;re doing this to become{" "}
               <span style={{ color: "var(--bone)", fontWeight: 600 }}>
-                {hypeWhy()}
+                the guy who just says hi
               </span>
               .
-            </div>
+            </div> */}
 
-            <BreathGuide />
+            <BreathGuide onCycle={() => setBreaths((b) => b + 1)} />
 
             <div
               style={{
@@ -168,6 +217,21 @@ export function HypeScreen() {
           >
             I&apos;m ready — count me down
           </button>
+          {/* Non-coercive reassurance, only after they've settled into a couple
+              of breaths. Reserves space so the button never jumps. */}
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: 12.5,
+              color: "var(--ash)",
+              marginTop: 12,
+              minHeight: 16,
+              opacity: showNoRush ? 1 : 0,
+              transition: "opacity .8s ease",
+            }}
+          >
+            Go when you&apos;re ready — no rush.
+          </div>
         </>
       )}
 
@@ -222,6 +286,7 @@ export function HypeScreen() {
               color: "var(--ash)",
               textTransform: "uppercase",
               marginTop: 20,
+              textAlign: "center",
             }}
           >
             Lock eyes. Smile. Move your feet.
@@ -277,7 +342,7 @@ export function HypeScreen() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
             <button
-              onClick={startLog}
+              onClick={() => startLog(true)}
               style={{
                 width: "100%",
                 border: "none",
@@ -294,7 +359,11 @@ export function HypeScreen() {
               I took the shot — log it
             </button>
             <button
-              onClick={() => nav("home")}
+              onClick={() => {
+                // Judgment-free exit: no lost streak, no penalty — one warm line.
+                showToast("The freeze won this one. It won't always.");
+                nav("home");
+              }}
               style={{
                 width: "100%",
                 border: "1px solid var(--slateHi)",

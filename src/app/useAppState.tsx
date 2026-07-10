@@ -69,6 +69,21 @@ export function useAppState({
     "primer",
   );
   const [hypeCount, setHypeCount] = useState(3);
+  // Did the current log session come through the Beat-the-Freeze ritual? Tags the
+  // logged rep (beatTheFreezeUsed) so the reward + progress insight can show the payoff.
+  const [freezeRep, setFreezeRep] = useState(false);
+  // "Go again?" nudge on the reward screen — shown at most once per session.
+  const [goAgainSeen, setGoAgainSeen] = useState(false);
+  // Day-stamp of the last time the freeze flow was opened, so the Home amber hero
+  // pulses only until it's used that day. Lazy-read from localStorage (Home only
+  // renders client-side after the boot gate, so no hydration mismatch).
+  const [freezeOpenedDay, setFreezeOpenedDay] = useState(() => {
+    try {
+      return localStorage.getItem("cg_freezeDay") || "";
+    } catch {
+      return "";
+    }
+  });
   const [quizStep, setQuizStep] = useState(0);
   const [quiz, setQuiz] = useState<{
     freq: string | null;
@@ -107,6 +122,7 @@ export function useAppState({
     isSignedIn ? { limit: 30 } : "skip",
   );
   const logRepMut = useMutation(api.approaches.logRep);
+  const markFreezeBeatenMut = useMutation(api.users.markFreezeBeaten);
   const completeOnboardingMut = useMutation(api.users.completeOnboarding);
   const setWeeklyGoalMut = useMutation(api.users.setWeeklyGoal);
   const markNumberMut = useMutation(api.approaches.markNumber);
@@ -239,8 +255,20 @@ export function useAppState({
     streakLongest: dash?.streak.longest ?? 0,
     totalApproaches: dash?.totals.approaches ?? 0,
     greatSets: dash?.totals.greatSets ?? 0,
+    freezesBeaten: dash?.user.freezesBeaten ?? 0,
     mostInDay: 0,
   };
+  const freezeInsight = dash?.freezeInsight ?? null;
+  // Local calendar day (courage-cue only, not the 4am-rollover key) — used to
+  // decide whether the Home amber hero should still pulse today.
+  const localDay = () => {
+    try {
+      return new Date().toLocaleDateString("en-CA");
+    } catch {
+      return "";
+    }
+  };
+  const freezePulse = freezeOpenedDay !== localDay();
   const trend: number[] = dash?.trend?.length
     ? dash.trend.map((p) => p.a)
     : [dash?.user.baselineAnxiety ?? quiz.anxiety ?? 5];
@@ -277,23 +305,35 @@ export function useAppState({
     trackCustom("HypeStarted");
     setHypeStep("primer");
     setHypeCount(3);
+    setFreezeRep(false);
+    // Stamp today so the Home amber hero stops pulsing once the ritual is opened.
+    const day = localDay();
+    try {
+      localStorage.setItem("cg_freezeDay", day);
+    } catch {}
+    setFreezeOpenedDay(day);
     nav("hype");
   };
   const hypeGo = () => {
     setHypeStep("countdown");
     setHypeCount(3);
-    haptic(); // tick on "3"
+    haptic(20); // tick on "3"
     let c = 3;
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       c -= 1;
       if (c <= 0) {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        haptic([30, 50, 30]); // GO
+        haptic([30, 40, 30]); // GO
         setHypeStep("go");
         setHypeCount(0);
+        // Reaching GO = the freeze beaten. Count it (courage, not outcome — no
+        // rep required) and tag the next log as freeze-assisted.
+        setFreezeRep(true);
+        trackCustom("FreezeBeaten");
+        markFreezeBeatenMut().catch(() => {});
       } else {
-        haptic(); // tick on 2, 1
+        haptic(20); // tick on 2, 1
         setHypeCount(c);
       }
     }, 1000);
@@ -340,7 +380,8 @@ export function useAppState({
   };
 
   // log
-  const startLog = () => {
+  const startLog = (fromFreeze = false) => {
+    setFreezeRep(fromFreeze);
     setDraft({ vibe: null, anxiety: 0, note: "" });
     nav("log");
   };
@@ -363,6 +404,8 @@ export function useAppState({
     // A "rough one": went poorly ("Still a rep") and/or high nerves. The reward
     // stays fully credited (same XP) but the TONE softens — see RewardScreen.
     rough: boolean,
+    // Logged via the Beat-the-Freeze ritual — adds a quiet line to the badge row.
+    beatFreeze: boolean,
   ) {
     return {
       approachId,
@@ -377,6 +420,7 @@ export function useAppState({
       milestone,
       isFirstEver,
       rough,
+      beatFreeze,
       eyebrow: isFirstEver
         ? "Your first approach. Ever."
         : repsToday === 1
@@ -406,6 +450,7 @@ export function useAppState({
     // A rough one: it went poorly, or the nerves right before were high (≥8).
     // Still fully credited — only the Reward screen's tone softens.
     const rough = draft.vibe === "STILL_A_REP" || draft.anxiety >= 8;
+    const beatFreeze = freezeRep;
     const prevTotal = user.totalApproaches;
     let res: Awaited<ReturnType<typeof logRepMut>>;
     try {
@@ -415,6 +460,7 @@ export function useAppState({
         gotNumber: false,
         note: draft.note.trim() || undefined,
         timezone,
+        beatTheFreezeUsed: beatFreeze || undefined,
       });
     } catch {
       showToast("Couldn't log that rep — try again.");
@@ -454,6 +500,7 @@ export function useAppState({
         milestone,
         isFirstEver,
         rough,
+        beatFreeze,
       ),
     );
     setDisplayXp(0);
@@ -817,6 +864,10 @@ export function useAppState({
     baselineAnx,
     hasRepsToday,
     todayMode,
+    freezeInsight,
+    freezePulse,
+    goAgainSeen,
+    setGoAgainSeen,
     baseRank,
     nextLockedLvl,
     journeyRanks,

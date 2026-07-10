@@ -67,6 +67,7 @@ export const completeOnboarding = mutation({
       totalApproaches: 0,
       greatSets: 0,
       gotNumbers: 0,
+      freezesBeaten: 0,
       repsToday: 0,
       repsThisWeek: 0,
       streakWeeks: 0,
@@ -83,6 +84,23 @@ export const setWeeklyGoal = mutation({
     const user = await userByToken(ctx, identity.tokenIdentifier);
     if (!user) throw new Error("No user");
     await ctx.db.patch(user._id, { weeklyGoal });
+  },
+});
+
+/**
+ * Beat-the-Freeze ritual reached GO — count it. Courage, not outcome: this only
+ * ever increments (never a losable streak), and logging a rep afterward is not
+ * required. Called once when the countdown lands on GO.
+ */
+export const markFreezeBeaten = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await requireIdentity(ctx);
+    const user = await userByToken(ctx, identity.tokenIdentifier);
+    if (!user) throw new Error("No user");
+    const freezesBeaten = (user.freezesBeaten ?? 0) + 1;
+    await ctx.db.patch(user._id, { freezesBeaten });
+    return { freezesBeaten };
   },
 });
 

@@ -35,6 +35,7 @@ export const logRep = mutation({
     gotNumber: v.boolean(),
     note: v.optional(v.string()),
     timezone: v.optional(v.string()),
+    beatTheFreezeUsed: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await meOrThrow(ctx);
@@ -85,6 +86,7 @@ export const logRep = mutation({
       note: args.note,
       xpAwarded: xp,
       modeReached: modeTier,
+      beatTheFreezeUsed: args.beatTheFreezeUsed,
     });
 
     await ctx.db.patch(user._id, {
@@ -225,6 +227,25 @@ export const dashboard = query({
       trend.unshift({ t: user.createdAt, a: user.baselineAnxiety });
     }
 
+    // Freeze payoff: does breathing first lower the nerves? Compare average
+    // pre-approach anxiety on freeze-assisted reps vs the rest, over the bounded
+    // recent window. Null until there's enough of both to be meaningful (≥5 each),
+    // so the client never renders a shaky zero.
+    const assisted = recent.filter((a) => a.beatTheFreezeUsed);
+    const unassisted = recent.filter((a) => !a.beatTheFreezeUsed);
+    const avgAnx = (arr: typeof recent) =>
+      arr.reduce((s, a) => s + a.anxietyBefore, 0) / arr.length;
+    const freezeInsight =
+      assisted.length >= 5 && unassisted.length >= 5
+        ? {
+            assistedAvg: avgAnx(assisted),
+            restAvg: avgAnx(unassisted),
+            diff: avgAnx(unassisted) - avgAnx(assisted), // >0 → calmer when breathing first
+            assistedCount: assisted.length,
+            restCount: unassisted.length,
+          }
+        : null;
+
     const todayCount = user.currentDayKey === currentDay ? user.repsToday : 0;
     const weekCount = user.currentWeekKey === currentWeek ? user.repsThisWeek : 0;
 
@@ -241,6 +262,7 @@ export const dashboard = query({
       week: { count: weekCount, goal: user.weeklyGoal },
       streak: { current: streakCurrent, longest: user.streakLongest },
       totals: { approaches: user.totalApproaches, greatSets: user.greatSets, numbers: user.gotNumbers },
+      freezeInsight,
       trend,
       isDayZero: user.totalApproaches === 0,
     };

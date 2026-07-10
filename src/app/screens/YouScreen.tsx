@@ -122,7 +122,6 @@ export function YouScreen() {
             }}
           >
             Level {level}
-            {user.totalApproaches === 1 ? "" : "es"}
           </div>
           {clerkUser?.primaryEmailAddress?.emailAddress && (
             <div
@@ -139,7 +138,7 @@ export function YouScreen() {
       </div>
 
       <div style={{ marginBottom: 30 }}>
-        <Row label="Reflections" onClick={() => nav("reflections")} first />
+        <Row label="Your reps" onClick={() => nav("reflections")} first />
         <Row
           label="Weekly goal"
           value={`${user.weeklyGoal} / week`}

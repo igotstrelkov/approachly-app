@@ -30,9 +30,13 @@ export function RewardScreen() {
     nav,
     user,
     setWeeklyGoalMut,
+    startHype,
+    goAgainSeen,
+    setGoAgainSeen,
   } = useApp();
   const { width, height } = useWindowSize();
   const [goalRaised, setGoalRaised] = useState(false);
+  const [goAgainDismissed, setGoAgainDismissed] = useState(false);
   if (!reward) return null;
   // Rough one → the calmer "acknowledgment" accent (amber). Same mechanics/XP,
   // quieter tone: no confetti, no celebratory pills, supportive copy.
@@ -45,6 +49,8 @@ export function RewardScreen() {
   const suggestedGoal = user.weeklyGoal + 1;
   const offerRaise =
     reward.rankUp && !reward.rough && user.weeklyGoal < goalCeil;
+  // "Go again?" nudge: at most once per session, never on a rough rep (no pressure).
+  const showGoAgain = !reward.rough && !goAgainSeen && !goAgainDismissed;
   return (
     <div
       style={{
@@ -259,6 +265,10 @@ export function RewardScreen() {
               background: hexA(reward.milestone.color, 0.12),
               border: `1px solid ${hexA(reward.milestone.color, 0.5)}`,
               animation: "aPop .5s .45s both",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 3,
             }}
           >
             <span
@@ -272,6 +282,36 @@ export function RewardScreen() {
             >
               ⭐ {reward.milestone.label}
             </span>
+            {/* Freeze payoff folded INTO the badge row — never a stacked element. */}
+            {reward.beatFreeze && (
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  color: "var(--amber)",
+                  textTransform: "uppercase",
+                }}
+              >
+                ⚡ Beat the freeze first
+              </span>
+            )}
+          </div>
+        )}
+        {/* No milestone badge to fold into → a single small line, not a card. */}
+        {reward.beatFreeze && (reward.rough || !reward.milestone) && (
+          <div
+            style={{
+              marginTop: 14,
+              fontFamily: MONO,
+              fontSize: 11.5,
+              letterSpacing: 1,
+              color: "var(--amber)",
+              textTransform: "uppercase",
+              animation: "aFadeUp .5s .45s both",
+            }}
+          >
+            ⚡ Beat the freeze first
           </div>
         )}
 
@@ -437,9 +477,82 @@ export function RewardScreen() {
 
         <div style={{ flex: 1 }} />
 
+        {/* Gentle, dismissible "go again" — encouragement only, no quota. */}
+        {showGoAgain && (
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 340,
+              marginBottom: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: "var(--charcoal)",
+              border: "1px solid var(--slate)",
+              borderRadius: 14,
+              padding: "12px 14px",
+              animation: "aFadeUp .5s .55s both",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--bone)",
+                lineHeight: 1.35,
+              }}
+            >
+              Still warm? The second one&apos;s always easier.
+            </div>
+            <button
+              onClick={() => {
+                setGoAgainSeen(true);
+                startHype();
+              }}
+              style={{
+                flexShrink: 0,
+                background: "rgba(255,178,62,.14)",
+                border: "1px solid var(--ember)",
+                borderRadius: 999,
+                padding: "8px 14px",
+                color: "var(--ember)",
+                fontFamily: MONO,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Go again
+            </button>
+            <button
+              onClick={() => {
+                setGoAgainSeen(true);
+                setGoAgainDismissed(true);
+              }}
+              aria-label="Dismiss"
+              style={{
+                flexShrink: 0,
+                background: "none",
+                border: "none",
+                color: "var(--ashDim)",
+                fontSize: 15,
+                cursor: "pointer",
+                padding: 2,
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         <div style={{ width: "100%", animation: "aFadeUp .5s .5s both" }}>
           <button
-            onClick={() => nav("home")}
+            onClick={() => {
+              if (showGoAgain) setGoAgainSeen(true);
+              nav("home");
+            }}
             style={{
               width: "100%",
               border: "none",

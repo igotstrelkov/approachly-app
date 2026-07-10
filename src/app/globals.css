@@ -118,6 +118,21 @@ textarea:focus {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* Home "Beat the Freeze" amber hero — subtle glow pulse until used that day.
+   Applied via a class so the inline base shadow survives when the animation is
+   disabled for reduced-motion. */
+@keyframes aAmberPulse {
+  0%, 100% { box-shadow: 0 14px 40px -10px rgba(255, 178, 62, 0.5); }
+  50% {
+    box-shadow:
+      0 14px 48px -6px rgba(255, 178, 62, 0.85),
+      0 0 0 4px rgba(255, 178, 62, 0.12);
+  }
+}
+.cg-freeze-pulse { animation: aAmberPulse 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cg-freeze-pulse { animation: none; }
+}
 
 /* ---------- landing FAQ accordion (Good to know) ---------- */
 .lp-faq summary { list-style: none; }
