@@ -81,8 +81,8 @@ export function LandingScreen() {
           textAlign: "center",
         }}
       >
-        You spot someone you like — and freeze. Daily reps train that out of
-        you, until walking over feels normal.
+        You spot someone you like and freeze. Daily reps train that out of you,
+        until walking over feels normal.
       </div>
 
       <div style={{ margin: "6px auto 24px", maxWidth: 250 }}>
