@@ -52,7 +52,7 @@ export function LandingScreen() {
           textAlign: "center",
         }}
       >
-        Swiping is hiding · 18+
+        Train out approach anxiety · 18+
       </div>
       <div
         style={{
@@ -81,9 +81,8 @@ export function LandingScreen() {
           textAlign: "center",
         }}
       >
-        You spot someone you&apos;d love to talk to — and freeze. Couragely
-        trains that out of you, one rep at a time, until walking over feels
-        normal.
+        You spot someone you like — and freeze. Daily reps train that out of
+        you, until walking over feels normal.
       </div>
 
       <div style={{ margin: "6px auto 24px", maxWidth: 250 }}>
@@ -186,7 +185,7 @@ export function LandingScreen() {
             img: "/screens/11-rep-reward.png",
             tag: "Instant payoff",
             title: "Every rep pays out",
-            copy: "Log an approach and you bank XP and level up — Spark, Ignition, all the way to Bold. It turns the scariest thing you do all day into a game you actually want to keep playing. Win or lose, you always move up.",
+            copy: "Log an approach and you bank XP and level up. It turns the scariest thing you do all day into a game you actually want to keep playing. Win or lose, you always move up.",
           },
           {
             img: "/screens/08-progress.png",
@@ -284,7 +283,7 @@ export function LandingScreen() {
             marginBottom: 8,
           }}
         >
-          Four steps. One rising count.
+          Four steps. One rep a day.
         </div>
         <div
           style={{
@@ -318,7 +317,7 @@ export function LandingScreen() {
             {
               n: "4",
               h: "Watch the fear drop",
-              p: "Your anxiety falls. Your count climbs.",
+              p: "Your anxiety falls — walking over gets easier.",
             },
           ].map((s) => (
             <div
@@ -459,7 +458,7 @@ export function LandingScreen() {
           {[
             {
               q: "Is it free?",
-              a: "Yes — the core is free: your counter, streak, daily missions and progress. A Pro coach comes later; you'll never be charged without choosing to.",
+              a: "Yes — the core is free: your rep counter, streak, daily rep and progress. A Pro coach comes later; you'll never be charged without choosing to.",
             },
             {
               q: "Is this about tricks or manipulation?",
