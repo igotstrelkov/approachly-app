@@ -1,4 +1,5 @@
 "use client";
+import { useRef } from "react";
 import { useApp } from "../AppContext";
 import { AnxRow } from "../components/AnxRow";
 import { DISPLAY, GO_GRAD, MONO } from "../theme";
@@ -21,6 +22,20 @@ export function QuizScreen() {
     quizGoal,
     quizFinish,
   } = useApp();
+  // Single-select steps auto-advance: tap = choose + continue (one tap, not two).
+  // A brief beat lets the selection highlight register; the ref guards against a
+  // fast double-tap advancing two steps.
+  const advancing = useRef(false);
+  const pick = (field: string, value: unknown) => {
+    if (advancing.current) return;
+    advancing.current = true;
+    haptic();
+    quizSet(field, value);
+    setTimeout(() => {
+      advancing.current = false;
+      quizNext();
+    }, 280);
+  };
   return (
     <div
       style={{
@@ -175,8 +190,8 @@ export function QuizScreen() {
                   lineHeight: 1.55,
                 }}
               >
-                The apps reward waiting. Real life rewards reps — and approach
-                anxiety only dies one way: doing it, in small doses, on repeat.{" "}
+                Approach anxiety dies one way: doing it, in small doses, on
+                repeat.{" "}
                 <span style={{ color: "var(--bone)" }}>
                   That&apos;s the whole app.
                 </span>
@@ -234,7 +249,7 @@ export function QuizScreen() {
               ].map((o) => (
                 <button
                   key={o.v}
-                  onClick={() => quizSet("freq", o.v)}
+                  onClick={() => pick("freq", o.v)}
                   style={{
                     textAlign: "left",
                     borderRadius: 15,
@@ -250,25 +265,6 @@ export function QuizScreen() {
                 </button>
               ))}
             </div>
-            <div style={{ flex: 1 }} />
-            <button
-              onClick={quizNext}
-              disabled={!quiz.freq}
-              style={{
-                width: "100%",
-                border: "none",
-                borderRadius: 16,
-                padding: 17,
-                background: quiz.freq ? "var(--go)" : "var(--slate)",
-                color: quiz.freq ? "#07130C" : "var(--ashDim)",
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: quiz.freq ? "pointer" : "not-allowed",
-                marginTop: 22,
-              }}
-            >
-              Continue
-            </button>
           </>
         )}
 
@@ -467,7 +463,7 @@ export function QuizScreen() {
               ].map((o) => (
                 <button
                   key={o.v}
-                  onClick={() => quizSet("barrier", o.v)}
+                  onClick={() => pick("barrier", o.v)}
                   style={{
                     textAlign: "left",
                     borderRadius: 15,
@@ -483,25 +479,6 @@ export function QuizScreen() {
                 </button>
               ))}
             </div>
-            <div style={{ flex: 1 }} />
-            <button
-              onClick={quizNext}
-              disabled={!quiz.barrier}
-              style={{
-                width: "100%",
-                border: "none",
-                borderRadius: 16,
-                padding: 17,
-                background: quiz.barrier ? "var(--go)" : "var(--slate)",
-                color: quiz.barrier ? "#07130C" : "var(--ashDim)",
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: quiz.barrier ? "pointer" : "not-allowed",
-                marginTop: 22,
-              }}
-            >
-              Continue
-            </button>
           </>
         )}
 
@@ -598,7 +575,7 @@ export function QuizScreen() {
               {goalVals.map((v) => (
                 <button
                   key={v}
-                  onClick={() => quizSet("goal", v)}
+                  onClick={() => pick("goal", v)}
                   style={{
                     textAlign: "left",
                     borderRadius: 15,
@@ -626,25 +603,6 @@ export function QuizScreen() {
                 </button>
               ))}
             </div>
-            <div style={{ flex: 1 }} />
-            <button
-              onClick={quizNext}
-              disabled={!quiz.goal}
-              style={{
-                width: "100%",
-                border: "none",
-                borderRadius: 16,
-                padding: 17,
-                background: quiz.goal ? "var(--go)" : "var(--slate)",
-                color: quiz.goal ? "#07130C" : "var(--ashDim)",
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: quiz.goal ? "pointer" : "not-allowed",
-                marginTop: 22,
-              }}
-            >
-              Continue
-            </button>
           </>
         )}
 
